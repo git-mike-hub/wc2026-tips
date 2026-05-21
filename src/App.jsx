@@ -215,7 +215,7 @@ export default function App() {
           <div className="nav-logo">WC2026 <span>Tipping Competition</span></div>
           <div className="nav-tabs">
             <button className={`nav-tab${view==="home"?" active":""}`} onClick={()=>setView("home")}>Home</button>
-            <button className={`nav-tab${view==="leaderboard"?" active":""}`} onClick={()=>setView("leaderboard")}>Leaderboard</button>
+            <button className={`nav-tab${view==="leaderboard"?" active":""}`} onClick={()=>setView("leaderboard")}>Ranks</button>
             {user && <button className={`nav-tab${view==="tips"?" active":""}`} onClick={()=>setView("tips")}>My Tips</button>}
             {user?.is_admin && <button className={`nav-tab${view==="admin"?" active":""}`} onClick={()=>setView("admin")}>Admin</button>}
           </div>
@@ -280,7 +280,7 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
       <div className="card">
         <div className="card-title">👋 Welcome back, {user.name}!</div>
         <div style={{display:"flex",gap:10}}>
-          <button className="btn btn-primary" style={{maxWidth:160}} onClick={()=>setView("leaderboard")}>Leaderboard</button>
+          <button className="btn btn-primary" style={{maxWidth:160}} onClick={()=>setView("leaderboard")}>Ranks</button>
           <button className="btn btn-secondary" style={{maxWidth:160}} onClick={()=>setView("tips")}>My Tips</button>
         </div>
       </div>
@@ -384,7 +384,7 @@ function LeaderboardView({ user }) {
   return (
     <div>
       <div style={{margin:"24px 0 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:"var(--green)"}}>🏆 Leaderboard</h2>
+        <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:"var(--green)"}}>🏆 Rankings</h2>
         <button className="btn-sm btn-green" onClick={loadLeaderboard}>↻ Refresh</button>
       </div>
       {participants.length===0
