@@ -21,7 +21,6 @@ const FLAGS = {
 };
 
 const tf = (name) => `${FLAGS[name]||"🏳"} ${name}`;
-
 const ALL_TEAMS = Object.keys(FLAGS).sort();
 
 const ROUNDS = [
@@ -128,7 +127,7 @@ const styles = `
   .match-pts.earned{color:var(--green2);}
   .match-pts.zero{color:var(--text3);}
   .odds-row{display:flex;gap:4px;margin-top:4px;justify-content:center;}
-  .odds-chip{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--text3);font-weight:600;}
+  .odds-chip{font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(76,175,80,0.15);color:#a5d6a7;font-weight:600;}
   .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border);padding:12px 16px;}
   .save-bar-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .save-bar-text{font-size:13px;color:var(--text2);}
@@ -152,10 +151,16 @@ const styles = `
   .admin-tab{padding:8px 20px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;transition:all 0.15s;}
   .admin-tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green2);}
   .admin-tab:hover:not(.active){border-color:var(--green-dim);color:var(--text);}
+  /* Admin sticky save bar */
+  .admin-save-bar{position:sticky;top:56px;z-index:90;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .admin-save-bar-left{font-size:13px;color:var(--text2);}
+  .admin-save-bar-left strong{color:var(--green2);}
   .result-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;flex-wrap:wrap;}
+  .result-row.has-saved{border-left:3px solid var(--green);}
   .result-teams{flex:1;font-size:13px;font-weight:600;min-width:160px;}
   .result-input{width:48px;text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:20px;outline:none;}
   .result-input:focus{border-color:var(--green);}
+  .result-input.dirty{border-color:var(--gold);color:var(--gold);}
   .result-sep{color:var(--text3);font-weight:700;}
   .result-saved{font-size:12px;color:var(--green2);font-weight:600;}
   .participant-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;flex-wrap:wrap;gap:8px;}
@@ -195,17 +200,8 @@ export default function App() {
     setLoading(false);
   };
 
-  const login = (u) => {
-    setUser(u);
-    localStorage.setItem("wc2026_user", JSON.stringify(u));
-    setView("tips");
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("wc2026_user");
-    setView("home");
-  };
+  const login = (u) => { setUser(u); localStorage.setItem("wc2026_user", JSON.stringify(u)); setView("tips"); };
+  const logout = () => { setUser(null); localStorage.removeItem("wc2026_user"); setView("home"); };
 
   if (loading) return (<><style>{styles}</style><div className="loading-wrap"><div className="spinner"/></div></>);
 
@@ -230,10 +226,10 @@ export default function App() {
         </div>
       </nav>
       <div className="app">
-        {view==="home"       && <HomeView user={user} onLogin={login} tipsLocked={tipsLocked} setView={setView}/>}
-        {view==="leaderboard"&& <LeaderboardView user={user}/>}
-        {view==="tips"       && user && <TipsView user={user} tipsLocked={tipsLocked}/>}
-        {view==="admin"      && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked}/>}
+        {view==="home"        && <HomeView user={user} onLogin={login} tipsLocked={tipsLocked} setView={setView}/>}
+        {view==="leaderboard" && <LeaderboardView user={user}/>}
+        {view==="tips"        && user && <TipsView user={user} tipsLocked={tipsLocked}/>}
+        {view==="admin"       && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked}/>}
       </div>
     </>
   );
@@ -257,7 +253,7 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
     const { data: existing } = await supabase.from("participants").select("id").ilike("name",name.trim()).maybeSingle();
     if (existing) { setError("That name is already taken. Please choose another."); setBusy(false); return; }
     const pin_hash = await hashPIN(pin);
-    const { error: err } = await supabase.from("participants").insert({name:name.trim(),pin_hash,is_admin:false}).select().single();
+    const { error: err } = await supabase.from("participants").insert({name:name.trim(),pin_hash,is_admin:false});
     if (err) { setError("Registration failed. Try again."); setBusy(false); return; }
     setSuccess("Account created! You can now log in.");
     setMode("login"); setPin(""); setPin2(""); setBusy(false);
@@ -353,7 +349,6 @@ function LeaderboardView({ user }) {
     setLoading(true);
     const { data: parts } = await supabase.from("participants").select("id,name,is_admin");
     if (!parts) { setLoading(false); return; }
-
     const scores = await Promise.all(parts.map(async p => {
       const [{ data: mt },{ data: qt },{ data: ct }] = await Promise.all([
         supabase.from("match_tips").select("points_earned").eq("participant_id",p.id),
@@ -361,26 +356,20 @@ function LeaderboardView({ user }) {
         supabase.from("champion_tips").select("points_earned").eq("participant_id",p.id),
       ]);
       const total =
-        (mt||[]).reduce((s,r)=>s+parseFloat(r.points_earned||0),0) +
-        (qt||[]).reduce((s,r)=>s+parseFloat(r.points_earned||0),0) +
+        (mt||[]).reduce((s,r)=>s+parseFloat(r.points_earned||0),0)+
+        (qt||[]).reduce((s,r)=>s+parseFloat(r.points_earned||0),0)+
         parseFloat((ct&&ct[0]?.points_earned)||0);
       return { ...p, total };
     }));
-
     scores.sort((a,b)=>b.total-a.total);
-
-    // Load previous ranks from settings
     const { data: prevData } = await supabase.from("settings").select("value").eq("key","prev_ranks").maybeSingle();
     let prevRanks = {};
     try { prevRanks = JSON.parse(prevData?.value||"{}"); } catch(e) {}
-
     const withRanks = scores.map((p,i) => {
       const prevRank = prevRanks[p.id];
-      const currentRank = i+1;
-      const change = prevRank ? prevRank - currentRank : null;
-      return { ...p, currentRank, prevRank, change };
+      const change = prevRank ? prevRank-(i+1) : null;
+      return { ...p, currentRank:i+1, change };
     });
-
     setParticipants(withRanks);
     setLoading(false);
   };
@@ -406,26 +395,15 @@ function LeaderboardView({ user }) {
               <tbody>
                 {participants.map((p,i)=>(
                   <tr key={p.id}>
-                    <td style={{paddingLeft:16}}>
-                      <span className={`rank-badge rank-${i<3?i+1:"other"}`}>{i+1}</span>
-                    </td>
+                    <td style={{paddingLeft:16}}><span className={`rank-badge rank-${i<3?i+1:"other"}`}>{i+1}</span></td>
+                    <td><strong>{p.name}</strong>{user?.id===p.id&&<span className="you-badge">YOU</span>}</td>
                     <td>
-                      <strong>{p.name}</strong>
-                      {user?.id===p.id && <span className="you-badge">YOU</span>}
+                      {p.change===null ? <span style={{fontSize:12,color:"var(--text3)"}}>new</span>
+                        : p.change>0 ? <span className="rank-change rank-up">▲ {p.change}</span>
+                        : p.change<0 ? <span className="rank-change rank-down">▼ {Math.abs(p.change)}</span>
+                        : <span className="rank-change rank-same">—</span>}
                     </td>
-                    <td>
-                      {p.change===null
-                        ? <span style={{fontSize:12,color:"var(--text3)"}}>new</span>
-                        : p.change>0
-                          ? <span className="rank-change rank-up">▲ {p.change}</span>
-                          : p.change<0
-                            ? <span className="rank-change rank-down">▼ {Math.abs(p.change)}</span>
-                            : <span className="rank-change rank-same">— </span>
-                      }
-                    </td>
-                    <td style={{textAlign:"right",paddingRight:16}}>
-                      <span className="pts">{p.total.toFixed(2)}</span>
-                    </td>
+                    <td style={{textAlign:"right",paddingRight:16}}><span className="pts">{p.total.toFixed(2)}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -440,7 +418,7 @@ function LeaderboardView({ user }) {
 function TipsView({ user, tipsLocked }) {
   const [tab, setTab] = useState("groups");
   const [matches, setMatches] = useState([]);
-  const [myTips, setMyTips] = useState({});       // { matchId: { home, away, active, pts } }
+  const [myTips, setMyTips] = useState({});
   const [qualTips, setQualTips] = useState({});
   const [champTip, setChampTip] = useState("");
   const [dirtyMatches, setDirtyMatches] = useState({});
@@ -461,7 +439,7 @@ function TipsView({ user, tipsLocked }) {
     ]);
     setMatches(ms||[]);
     const tipMap = {};
-    (mt||[]).forEach(t=>{ tipMap[t.match_id]={ home:t.tip_home, away:t.tip_away, active:true, pts:t.points_earned }; });
+    (mt||[]).forEach(t=>{ tipMap[t.match_id]={home:t.tip_home,away:t.tip_away,active:true,pts:t.points_earned}; });
     setMyTips(tipMap);
     const qMap = {};
     (qt||[]).forEach(t=>{ if(!qMap[t.round])qMap[t.round]=[]; qMap[t.round].push(t.team_name); });
@@ -470,17 +448,15 @@ function TipsView({ user, tipsLocked }) {
     setLoading(false);
   };
 
-  // Fix #3: activate both sides as soon as either is touched
   const updateTip = (matchId, side, val) => {
     if (tipsLocked) return;
-    const raw = val === "" ? "" : Math.max(0, parseInt(val)||0);
-    setMyTips(prev => {
-      const cur = prev[matchId] || { home: 0, away: 0, active: false };
-      const updated = { ...cur, [side]: raw, active: true };
-      // Once activated, default the untouched side to 0
-      if (updated.home === "") updated.home = 0;
-      if (updated.away === "") updated.away = 0;
-      return { ...prev, [matchId]: updated };
+    const raw = val===""?"":Math.max(0,parseInt(val)||0);
+    setMyTips(prev=>{
+      const cur = prev[matchId]||{home:0,away:0,active:false};
+      const updated = {...cur,[side]:raw,active:true};
+      if (updated.home==="") updated.home=0;
+      if (updated.away==="") updated.away=0;
+      return {...prev,[matchId]:updated};
     });
     setDirtyMatches(prev=>({...prev,[matchId]:true}));
     setDirty(true);
@@ -503,13 +479,10 @@ function TipsView({ user, tipsLocked }) {
       await Promise.all(Object.entries(dirtyMatches).map(async ([matchId]) => {
         const t = myTips[matchId];
         if (!t?.active) return;
-        const h = parseInt(t.home)||0, a = parseInt(t.away)||0;
+        const h=parseInt(t.home)||0, a=parseInt(t.away)||0;
         const { data: existing } = await supabase.from("match_tips").select("id").eq("participant_id",user.id).eq("match_id",matchId).maybeSingle();
-        if (existing) {
-          await supabase.from("match_tips").update({tip_home:h,tip_away:a}).eq("id",existing.id);
-        } else {
-          await supabase.from("match_tips").insert({participant_id:user.id,match_id:parseInt(matchId),tip_home:h,tip_away:a});
-        }
+        if (existing) await supabase.from("match_tips").update({tip_home:h,tip_away:a}).eq("id",existing.id);
+        else await supabase.from("match_tips").insert({participant_id:user.id,match_id:parseInt(matchId),tip_home:h,tip_away:a});
       }));
       for (const round of ROUNDS.map(r=>r.key)) {
         await supabase.from("qualifier_tips").delete().eq("participant_id",user.id).eq("round",round);
@@ -523,15 +496,12 @@ function TipsView({ user, tipsLocked }) {
       }
       setDirty(false); setDirtyMatches({});
       setSaveMsg("✅ Tips saved successfully!");
-    } catch(e) {
-      setSaveMsg("❌ Error saving. Please try again.");
-    }
+    } catch(e) { setSaveMsg("❌ Error saving. Please try again."); }
     setSaving(false);
     setTimeout(()=>setSaveMsg(""),4000);
   };
 
   if (loading) return <div className="loading-wrap"><div className="spinner"/></div>;
-
   const groups = [...new Set(matches.map(m=>m.group_name))].sort();
   const tipsCount = Object.values(myTips).filter(t=>t?.active).length;
 
@@ -541,8 +511,7 @@ function TipsView({ user, tipsLocked }) {
         <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:"var(--green)"}}>⚽ My Tips</h2>
         {tipsLocked
           ? <span className="alert alert-warn" style={{margin:0}}>🔒 Tips are locked — view only</span>
-          : <span className="text-muted">{tipsCount}/72 matches tipped</span>
-        }
+          : <span className="text-muted">{tipsCount}/72 matches tipped</span>}
       </div>
       {saveMsg && <div className={`alert ${saveMsg.startsWith("✅")?"alert-success":"alert-error"}`}>{saveMsg}</div>}
       <div className="tips-tabs">
@@ -556,35 +525,26 @@ function TipsView({ user, tipsLocked }) {
           <div className="group-header">GROUP {g}</div>
           {matches.filter(m=>m.group_name===g).map(m=>{
             const tip = myTips[m.id]||{};
-            const hasResult = m.result_home!==null && m.result_away!==null;
+            const hasResult = m.result_home!==null&&m.result_away!==null;
             const hasTip = tip.active;
-            const getRes = (h,a)=>h>a?"1":h<a?"2":"X";
-            let rowClass = "match-row";
-            if (hasResult && hasTip) {
-              rowClass += getRes(tip.home,tip.away)===getRes(m.result_home,m.result_away)?" has-result":" wrong-result";
-            }
-            const d = new Date(m.match_date);
-            const dateStr = d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"UTC"});
+            const getRes=(h,a)=>h>a?"1":h<a?"2":"X";
+            let rowClass="match-row";
+            if (hasResult&&hasTip) rowClass+=getRes(tip.home,tip.away)===getRes(m.result_home,m.result_away)?" has-result":" wrong-result";
+            const d=new Date(m.match_date);
+            const dateStr=d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"UTC"});
             return (
               <div key={m.id} className={rowClass}>
                 <div className="team-name team-home">{tf(m.home_team)}</div>
                 <div>
                   <div className="match-score">
-                    {tipsLocked ? (
-                      <><span className="score-display">{hasTip?tip.home:"?"}</span><span className="score-sep">-</span><span className="score-display">{hasTip?tip.away:"?"}</span></>
-                    ) : (
-                      <>
-                        <input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="20"
-                          value={tip.active ? (tip.home??0) : ""}
-                          onChange={e=>updateTip(m.id,"home",e.target.value)} placeholder="0"/>
-                        <span className="score-sep">-</span>
-                        <input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="20"
-                          value={tip.active ? (tip.away??0) : ""}
-                          onChange={e=>updateTip(m.id,"away",e.target.value)} placeholder="0"/>
-                      </>
-                    )}
+                    {tipsLocked
+                      ? <><span className="score-display">{hasTip?tip.home:"?"}</span><span className="score-sep">-</span><span className="score-display">{hasTip?tip.away:"?"}</span></>
+                      : <><input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="20" value={tip.active?(tip.home??0):""} onChange={e=>updateTip(m.id,"home",e.target.value)} placeholder="0"/>
+                          <span className="score-sep">-</span>
+                          <input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="20" value={tip.active?(tip.away??0):""} onChange={e=>updateTip(m.id,"away",e.target.value)} placeholder="0"/></>
+                    }
                   </div>
-                  {hasResult && <div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:4}}>Result: {m.result_home}-{m.result_away}</div>}
+                  {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:4}}>Result: {m.result_home}-{m.result_away}</div>}
                   <div className="odds-row">
                     <span className="odds-chip">1: {m.odds_home}</span>
                     <span className="odds-chip">X: {m.odds_draw}</span>
@@ -594,7 +554,7 @@ function TipsView({ user, tipsLocked }) {
                 <div className="team-name">{tf(m.away_team)}</div>
                 <div style={{textAlign:"right",minWidth:60}}>
                   <div className="match-date">{dateStr}</div>
-                  {hasResult && hasTip && <div className={`match-pts${parseFloat(tip.pts||0)>0?" earned":" zero"}`}>{parseFloat(tip.pts||0).toFixed(2)} pts</div>}
+                  {hasResult&&hasTip&&<div className={`match-pts${parseFloat(tip.pts||0)>0?" earned":" zero"}`}>{parseFloat(tip.pts||0).toFixed(2)} pts</div>}
                 </div>
               </div>
             );
@@ -606,16 +566,13 @@ function TipsView({ user, tipsLocked }) {
         <div>
           <p className="section-intro">Select which teams you think will advance to each knockout round.</p>
           {ROUNDS.map(r=>{
-            const selected = qualTips[r.key]||[];
+            const selected=qualTips[r.key]||[];
             return (
               <div key={r.key} className="qualifier-section card">
                 <div className="qualifier-title">{r.label}<span className="qualifier-pts">{r.points} pts each · pick {r.count}</span></div>
                 <div className="team-grid">
                   {ALL_TEAMS.map(team=>(
-                    <div key={team} className={`team-chip${selected.includes(team)?" selected":""}${tipsLocked?" locked":""}`}
-                      onClick={()=>toggleQualTeam(r.key,team,r.count)}>
-                      {tf(team)}
-                    </div>
+                    <div key={team} className={`team-chip${selected.includes(team)?" selected":""}${tipsLocked?" locked":""}`} onClick={()=>toggleQualTeam(r.key,team,r.count)}>{tf(team)}</div>
                   ))}
                 </div>
                 <div className="count-badge">{selected.length}/{r.count} selected</div>
@@ -655,7 +612,10 @@ function TipsView({ user, tipsLocked }) {
 function AdminView({ tipsLocked, setTipsLocked }) {
   const [tab, setTab] = useState("results");
   const [matches, setMatches] = useState([]);
+  // results: { matchId: { home, away } } — tracks what's typed in the inputs
   const [results, setResults] = useState({});
+  // dirtyResults: set of matchIds that have been edited since last save
+  const [dirtyResults, setDirtyResults] = useState(new Set());
   const [participants, setParticipants] = useState([]);
   const [newPin, setNewPin] = useState({});
   const [qualResults, setQualResults] = useState({});
@@ -664,6 +624,8 @@ function AdminView({ tipsLocked, setTipsLocked }) {
   const [msg, setMsg] = useState({});
   const [loading, setLoading] = useState(true);
   const [lockBusy, setLockBusy] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState("");
 
   useEffect(()=>{ loadAll(); },[]);
 
@@ -695,9 +657,8 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     setLockBusy(false);
   };
 
-  const getRes = (h,a)=>h>a?"1":h<a?"2":"X";
+  const getRes=(h,a)=>h>a?"1":h<a?"2":"X";
 
-  // Save prev ranks snapshot then score the match
   const saveRankSnapshot = async () => {
     const { data: parts } = await supabase.from("participants").select("id");
     if (!parts) return;
@@ -711,7 +672,7 @@ function AdminView({ tipsLocked, setTipsLocked }) {
         (mt||[]).reduce((s,r)=>s+parseFloat(r.points_earned||0),0)+
         (qt||[]).reduce((s,r)=>s+parseFloat(r.points_earned||0),0)+
         parseFloat((ct&&ct[0]?.points_earned)||0);
-      return { id:p.id, total };
+      return {id:p.id,total};
     }));
     scores.sort((a,b)=>b.total-a.total);
     const rankMap = {};
@@ -719,34 +680,58 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     await supabase.from("settings").upsert({key:"prev_ranks",value:JSON.stringify(rankMap)},{onConflict:"key"});
   };
 
-  const saveResult = async (match) => {
-    const r = results[match.id];
-    if (r?.home===""||r?.away===""||r?.home===undefined||r?.away===undefined) return;
-    setSaving(s=>({...s,[match.id]:true}));
-    // Snapshot ranks BEFORE scoring
-    await saveRankSnapshot();
-    const rh=parseInt(r.home), ra=parseInt(r.away);
+  // Single match result scorer (used by bulk save)
+  const scoreMatch = async (match, rh, ra) => {
     await supabase.from("matches").update({result_home:rh,result_away:ra,result_entered_at:new Date().toISOString()}).eq("id",match.id);
     const { data: tips } = await supabase.from("match_tips").select("*").eq("match_id",match.id);
-    const actualRes = getRes(rh,ra);
+    const actualRes=getRes(rh,ra);
     for (const t of (tips||[])) {
-      const tipRes = getRes(t.tip_home,t.tip_away);
-      let pts = tipRes===actualRes ? (tipRes==="1"?match.odds_home:tipRes==="2"?match.odds_away:match.odds_draw) : 0;
-      if (t.tip_home===rh && t.tip_away===ra) pts+=5;
+      const tipRes=getRes(t.tip_home,t.tip_away);
+      let pts = tipRes===actualRes?(tipRes==="1"?match.odds_home:tipRes==="2"?match.odds_away:match.odds_draw):0;
+      if (t.tip_home===rh&&t.tip_away===ra) pts+=5;
       await supabase.from("match_tips").update({points_earned:pts}).eq("id",t.id);
     }
-    setMsg(m=>({...m,[match.id]:"✅ Saved"}));
-    setTimeout(()=>setMsg(m=>({...m,[match.id]:""})),3000);
-    setSaving(s=>({...s,[match.id]:false}));
+  };
+
+  // Bulk save all dirty results at once
+  const saveAllResults = async () => {
+    if (dirtyResults.size===0) return;
+    setBulkSaving(true); setBulkMsg("");
+    try {
+      await saveRankSnapshot();
+      const matchMap = {};
+      matches.forEach(m=>{ matchMap[m.id]=m; });
+      await Promise.all([...dirtyResults].map(async (matchId) => {
+        const r = results[matchId];
+        if (r?.home===""||r?.away===""||r?.home===undefined||r?.away===undefined) return;
+        const rh=parseInt(r.home), ra=parseInt(r.away);
+        if (isNaN(rh)||isNaN(ra)) return;
+        await scoreMatch(matchMap[matchId], rh, ra);
+      }));
+      setDirtyResults(new Set());
+      setBulkMsg(`✅ ${dirtyResults.size} result${dirtyResults.size>1?"s":""} saved & scored!`);
+      // Refresh matches to show updated state
+      const { data: ms } = await supabase.from("matches").select("*").order("match_number");
+      setMatches(ms||[]);
+    } catch(e) {
+      setBulkMsg("❌ Error saving. Please try again.");
+    }
+    setBulkSaving(false);
+    setTimeout(()=>setBulkMsg(""),5000);
+  };
+
+  const updateResult = (matchId, side, val) => {
+    setResults(r=>({...r,[matchId]:{...r[matchId],[side]:val}}));
+    setDirtyResults(prev=>new Set([...prev,matchId]));
   };
 
   const saveQualResults = async (round) => {
-    const teams = qualResults[round]||[];
+    const teams=qualResults[round]||[];
     setSaving(s=>({...s,[round]:true}));
     await saveRankSnapshot();
     await supabase.from("qualifier_results").delete().eq("round",round);
     if (teams.length>0) await supabase.from("qualifier_results").insert(teams.map(t=>({round,team_name:t})));
-    const pts = ROUNDS.find(r=>r.key===round)?.points||0;
+    const pts=ROUNDS.find(r=>r.key===round)?.points||0;
     const { data: tips } = await supabase.from("qualifier_tips").select("*").eq("round",round);
     for (const t of (tips||[])) await supabase.from("qualifier_tips").update({points_earned:teams.includes(t.team_name)?pts:0}).eq("id",t.id);
     setMsg(m=>({...m,[round]:"✅ Saved"}));
@@ -768,18 +753,18 @@ function AdminView({ tipsLocked, setTipsLocked }) {
   };
 
   const resetPin = async (participantId) => {
-    const pin = newPin[participantId];
+    const pin=newPin[participantId];
     if (!pin||pin.length!==4||!/^\d{4}$/.test(pin)) { alert("Enter a valid 4-digit PIN"); return; }
-    const pin_hash = await hashPIN(pin);
+    const pin_hash=await hashPIN(pin);
     await supabase.from("participants").update({pin_hash}).eq("id",participantId);
     setMsg(m=>({...m,[participantId]:"✅ PIN reset"}));
     setNewPin(p=>({...p,[participantId]:""}));
     setTimeout(()=>setMsg(m=>({...m,[participantId]:""})),3000);
   };
 
-  const toggleQualResult = (round, team, maxCount) => {
+  const toggleQualResult=(round,team,maxCount)=>{
     setQualResults(prev=>{
-      const cur = prev[round]||[];
+      const cur=prev[round]||[];
       if (cur.includes(team)) return {...prev,[round]:cur.filter(t=>t!==team)};
       if (cur.length>=maxCount) return prev;
       return {...prev,[round]:[...cur,team]};
@@ -787,20 +772,19 @@ function AdminView({ tipsLocked, setTipsLocked }) {
   };
 
   if (loading) return <div className="loading-wrap"><div className="spinner"/></div>;
-  const groups = [...new Set(matches.map(m=>m.group_name))].sort();
+  const groups=[...new Set(matches.map(m=>m.group_name))].sort();
 
   return (
     <div>
       <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:"var(--green)",margin:"24px 0 16px"}}>⚙️ Admin Panel</h2>
 
-      {/* LOCK TOGGLE — always visible */}
       <div className="lock-toggle">
         <div className="lock-status">
-          <div className="lock-status-label">{tipsLocked ? "🔒 Tips are currently LOCKED" : "🟢 Tips are currently OPEN"}</div>
-          <div className="lock-status-desc">{tipsLocked ? "Participants cannot submit or change tips." : "Participants can submit and edit their tips."}</div>
+          <div className="lock-status-label">{tipsLocked?"🔒 Tips are currently LOCKED":"🟢 Tips are currently OPEN"}</div>
+          <div className="lock-status-desc">{tipsLocked?"Participants cannot submit or change tips.":"Participants can submit and edit their tips."}</div>
         </div>
         <button className={`btn-sm ${tipsLocked?"btn-green":"btn-red"}`} onClick={toggleLock} disabled={lockBusy}>
-          {lockBusy ? "..." : tipsLocked ? "Unlock Tips" : "Lock Tips"}
+          {lockBusy?"...":tipsLocked?"Unlock Tips":"Lock Tips"}
         </button>
       </div>
 
@@ -813,24 +797,39 @@ function AdminView({ tipsLocked, setTipsLocked }) {
 
       {tab==="results" && (
         <div>
-          <p className="section-intro">Enter final scores. Points calculated automatically. Ranking snapshot saved before each update.</p>
+          {/* Sticky save bar */}
+          <div className="admin-save-bar">
+            <div className="admin-save-bar-left">
+              {dirtyResults.size>0
+                ? <><strong>{dirtyResults.size} match{dirtyResults.size>1?"es":""}</strong> ready to save</>
+                : <span style={{color:"var(--text3)"}}>Enter scores below — they turn gold when edited</span>
+              }
+              {bulkMsg && <span style={{marginLeft:12,color:bulkMsg.startsWith("✅")?"var(--green2)":"var(--red)",fontWeight:700}}>{bulkMsg}</span>}
+            </div>
+            <button className="btn-save" onClick={saveAllResults} disabled={bulkSaving||dirtyResults.size===0}>
+              {bulkSaving?"Saving...":"Save All Results"}
+            </button>
+          </div>
+
           {groups.map(g=>(
             <div key={g}>
               <div className="group-header">GROUP {g}</div>
-              {matches.filter(m=>m.group_name===g).map(m=>(
-                <div key={m.id} className="result-row">
-                  <div className="result-teams">{tf(m.home_team)} vs {tf(m.away_team)}</div>
-                  <input className="result-input" type="number" min="0" max="20" placeholder="0"
-                    value={results[m.id]?.home??""} onChange={e=>setResults(r=>({...r,[m.id]:{...r[m.id],home:e.target.value}}))}/>
-                  <span className="result-sep">-</span>
-                  <input className="result-input" type="number" min="0" max="20" placeholder="0"
-                    value={results[m.id]?.away??""} onChange={e=>setResults(r=>({...r,[m.id]:{...r[m.id],away:e.target.value}}))}/>
-                  <button className="btn-sm btn-green" onClick={()=>saveResult(m)} disabled={saving[m.id]}>
-                    {saving[m.id]?"...":"Save"}
-                  </button>
-                  {msg[m.id]&&<span className="result-saved">{msg[m.id]}</span>}
-                </div>
-              ))}
+              {matches.filter(m=>m.group_name===g).map(m=>{
+                const isDirty = dirtyResults.has(m.id);
+                const hasSaved = m.result_home!==null;
+                return (
+                  <div key={m.id} className={`result-row${hasSaved&&!isDirty?" has-saved":""}`}>
+                    <div className="result-teams">{tf(m.home_team)} vs {tf(m.away_team)}</div>
+                    <input className={`result-input${isDirty?" dirty":""}`} type="number" min="0" max="20" placeholder="0"
+                      value={results[m.id]?.home??""} onChange={e=>updateResult(m.id,"home",e.target.value)}/>
+                    <span className="result-sep">-</span>
+                    <input className={`result-input${isDirty?" dirty":""}`} type="number" min="0" max="20" placeholder="0"
+                      value={results[m.id]?.away??""} onChange={e=>updateResult(m.id,"away",e.target.value)}/>
+                    {hasSaved&&!isDirty&&<span className="result-saved">✅ {m.result_home}-{m.result_away}</span>}
+                    {isDirty&&<span style={{fontSize:12,color:"var(--gold)",fontWeight:600}}>● unsaved</span>}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
