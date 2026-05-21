@@ -126,8 +126,10 @@ const styles = `
   .match-pts{font-size:12px;font-weight:700;}
   .match-pts.earned{color:var(--green2);}
   .match-pts.zero{color:var(--text3);}
-  .odds-row{display:flex;gap:4px;margin-top:4px;justify-content:center;}
-  .odds-chip{font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(76,175,80,0.15);color:#a5d6a7;font-weight:600;}
+  .odds-row{display:flex;gap:6px;margin-top:6px;justify-content:center;}
+  .odds-chip{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 8px;border-radius:6px;background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.2);}
+  .odds-chip-label{font-size:10px;color:#a5d6a7;font-weight:800;letter-spacing:0.05em;}
+  .odds-chip-val{font-size:12px;color:#c8e6c9;font-weight:700;}
   .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border);padding:12px 16px;}
   .save-bar-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .save-bar-text{font-size:13px;color:var(--text2);}
@@ -365,9 +367,12 @@ function LeaderboardView({ user }) {
     const { data: prevData } = await supabase.from("settings").select("value").eq("key","prev_ranks").maybeSingle();
     let prevRanks = {};
     try { prevRanks = JSON.parse(prevData?.value||"{}"); } catch(e) {}
+    const hasSnapshot = Object.keys(prevRanks).length > 0;
     const withRanks = scores.map((p,i) => {
       const prevRank = prevRanks[p.id];
-      const change = prevRank ? prevRank-(i+1) : null;
+      // null = truly new participant with no snapshot at all
+      // 0 = no change, positive = moved up, negative = moved down
+      const change = !hasSnapshot ? null : prevRank ? prevRank-(i+1) : 0;
       return { ...p, currentRank:i+1, change };
     });
     setParticipants(withRanks);
@@ -439,7 +444,7 @@ function TipsView({ user, tipsLocked }) {
     ]);
     setMatches(ms||[]);
     const tipMap = {};
-    (mt||[]).forEach(t=>{ tipMap[t.match_id]={home:t.tip_home,away:t.tip_away,active:true,pts:t.points_earned}; });
+    (mt||[]).forEach(t=>{ tipMap[t.match_id]={home:t.tip_home??0,away:t.tip_away??0,active:true,pts:t.points_earned}; });
     setMyTips(tipMap);
     const qMap = {};
     (qt||[]).forEach(t=>{ if(!qMap[t.round])qMap[t.round]=[]; qMap[t.round].push(t.team_name); });
@@ -450,12 +455,12 @@ function TipsView({ user, tipsLocked }) {
 
   const updateTip = (matchId, side, val) => {
     if (tipsLocked) return;
-    const raw = val===""?"":Math.max(0,parseInt(val)||0);
+    // Allow only single digit 0-9
+    const cleaned = val.replace(/[^0-9]/g,"").slice(-1);
+    const raw = cleaned===""?"":parseInt(cleaned);
     setMyTips(prev=>{
-      const cur = prev[matchId]||{home:0,away:0,active:false};
+      const cur = prev[matchId]||{home:"",away:"",active:false};
       const updated = {...cur,[side]:raw,active:true};
-      if (updated.home==="") updated.home=0;
-      if (updated.away==="") updated.away=0;
       return {...prev,[matchId]:updated};
     });
     setDirtyMatches(prev=>({...prev,[matchId]:true}));
@@ -479,7 +484,7 @@ function TipsView({ user, tipsLocked }) {
       await Promise.all(Object.entries(dirtyMatches).map(async ([matchId]) => {
         const t = myTips[matchId];
         if (!t?.active) return;
-        const h=parseInt(t.home)||0, a=parseInt(t.away)||0;
+        const h=t.home===""?0:parseInt(t.home)||0, a=t.away===""?0:parseInt(t.away)||0;
         const { data: existing } = await supabase.from("match_tips").select("id").eq("participant_id",user.id).eq("match_id",matchId).maybeSingle();
         if (existing) await supabase.from("match_tips").update({tip_home:h,tip_away:a}).eq("id",existing.id);
         else await supabase.from("match_tips").insert({participant_id:user.id,match_id:parseInt(matchId),tip_home:h,tip_away:a});
@@ -539,16 +544,16 @@ function TipsView({ user, tipsLocked }) {
                   <div className="match-score">
                     {tipsLocked
                       ? <><span className="score-display">{hasTip?tip.home:"?"}</span><span className="score-sep">-</span><span className="score-display">{hasTip?tip.away:"?"}</span></>
-                      : <><input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="20" value={tip.active?(tip.home??0):""} onChange={e=>updateTip(m.id,"home",e.target.value)} placeholder="0"/>
+                      : <><input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="9" value={tip.active?(tip.home??""):""}  onChange={e=>updateTip(m.id,"home",e.target.value)} placeholder="-"/>
                           <span className="score-sep">-</span>
-                          <input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="20" value={tip.active?(tip.away??0):""} onChange={e=>updateTip(m.id,"away",e.target.value)} placeholder="0"/></>
+                          <input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="9" value={tip.active?(tip.away??""):""}  onChange={e=>updateTip(m.id,"away",e.target.value)} placeholder="-"/></>
                     }
                   </div>
                   {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:4}}>Result: {m.result_home}-{m.result_away}</div>}
                   <div className="odds-row">
-                    <span className="odds-chip">1: {m.odds_home}</span>
-                    <span className="odds-chip">X: {m.odds_draw}</span>
-                    <span className="odds-chip">2: {m.odds_away}</span>
+                    <span className="odds-chip"><span className="odds-chip-label">1</span><span className="odds-chip-val">{m.odds_home}</span></span>
+                    <span className="odds-chip"><span className="odds-chip-label">X</span><span className="odds-chip-val">{m.odds_draw}</span></span>
+                    <span className="odds-chip"><span className="odds-chip-label">2</span><span className="odds-chip-val">{m.odds_away}</span></span>
                   </div>
                 </div>
                 <div className="team-name">{tf(m.away_team)}</div>
@@ -698,9 +703,9 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     if (dirtyResults.size===0) return;
     setBulkSaving(true); setBulkMsg("");
     try {
-      await saveRankSnapshot();
       const matchMap = {};
       matches.forEach(m=>{ matchMap[m.id]=m; });
+      const savedCount = dirtyResults.size;
       await Promise.all([...dirtyResults].map(async (matchId) => {
         const r = results[matchId];
         if (r?.home===""||r?.away===""||r?.home===undefined||r?.away===undefined) return;
@@ -708,8 +713,10 @@ function AdminView({ tipsLocked, setTipsLocked }) {
         if (isNaN(rh)||isNaN(ra)) return;
         await scoreMatch(matchMap[matchId], rh, ra);
       }));
+      // Snapshot AFTER scoring so leaderboard reflects new points
+      await saveRankSnapshot();
       setDirtyResults(new Set());
-      setBulkMsg(`✅ ${dirtyResults.size} result${dirtyResults.size>1?"s":""} saved & scored!`);
+      setBulkMsg(`✅ ${savedCount} result${savedCount>1?"s":""} saved & scored!`);
       // Refresh matches to show updated state
       const { data: ms } = await supabase.from("matches").select("*").order("match_number");
       setMatches(ms||[]);
@@ -728,12 +735,12 @@ function AdminView({ tipsLocked, setTipsLocked }) {
   const saveQualResults = async (round) => {
     const teams=qualResults[round]||[];
     setSaving(s=>({...s,[round]:true}));
-    await saveRankSnapshot();
     await supabase.from("qualifier_results").delete().eq("round",round);
     if (teams.length>0) await supabase.from("qualifier_results").insert(teams.map(t=>({round,team_name:t})));
     const pts=ROUNDS.find(r=>r.key===round)?.points||0;
     const { data: tips } = await supabase.from("qualifier_tips").select("*").eq("round",round);
     for (const t of (tips||[])) await supabase.from("qualifier_tips").update({points_earned:teams.includes(t.team_name)?pts:0}).eq("id",t.id);
+    await saveRankSnapshot();
     setMsg(m=>({...m,[round]:"✅ Saved"}));
     setTimeout(()=>setMsg(m=>({...m,[round]:""})),3000);
     setSaving(s=>({...s,[round]:false}));
@@ -742,11 +749,11 @@ function AdminView({ tipsLocked, setTipsLocked }) {
   const saveChampResult = async () => {
     if (!champResult) return;
     setSaving(s=>({...s,champ:true}));
-    await saveRankSnapshot();
     await supabase.from("champion_result").delete().neq("id","00000000-0000-0000-0000-000000000000");
     await supabase.from("champion_result").insert({team_name:champResult});
     const { data: tips } = await supabase.from("champion_tips").select("*");
     for (const t of (tips||[])) await supabase.from("champion_tips").update({points_earned:t.team_name===champResult?13:0}).eq("id",t.id);
+    await saveRankSnapshot();
     setMsg(m=>({...m,champ:"✅ Saved"}));
     setTimeout(()=>setMsg(m=>({...m,champ:""})),3000);
     setSaving(s=>({...s,champ:false}));
