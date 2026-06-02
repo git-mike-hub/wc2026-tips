@@ -118,22 +118,32 @@ const styles = `
   .rank-same{color:var(--text3);}
   .group-header{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text2);letter-spacing:0.1em;padding:20px 0 10px;display:flex;align-items:center;gap:12px;}
   .group-header::after{content:'';flex:1;height:1px;background:var(--border);}
-  .match-row{display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);margin-bottom:8px;transition:border-color 0.15s;}
+  .match-row{display:grid;grid-template-columns:1fr auto 1fr auto;grid-template-areas:"home picks away meta";align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);margin-bottom:8px;transition:border-color 0.15s;}
   .match-row:hover{border-color:var(--green-dim);}
   .match-row.has-result{border-left:3px solid var(--green);}
   .match-row.wrong-result{border-left:3px solid var(--red);}
+  .match-picks{grid-area:picks;}
+  .match-row-meta{grid-area:meta;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px 12px;min-width:60px;}
   .team-name{font-weight:600;font-size:14px;}
-  .team-home{text-align:right;}
+  .team-home{grid-area:home;text-align:right;}
+  .team-away{grid-area:away;}
   .match-score{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;}
   .score-input{width:36px;text-align:center;background:transparent;border:none;outline:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;}
   .score-input::-webkit-inner-spin-button{-webkit-appearance:none;}
   .score-input.active-tip{color:var(--green2);}
   .score-sep{color:var(--text3);font-weight:700;font-size:18px;}
   .score-display{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green2);min-width:28px;text-align:center;}
-  .match-date{font-size:11px;color:var(--text3);text-align:right;}
-  .match-pts{font-size:12px;font-weight:700;}
+  .match-date{font-size:11px;color:var(--text3);}
+  .match-result,.match-pts{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:0.04em;line-height:1.2;}
+  .match-result{color:var(--text2);}
   .match-pts.earned{color:var(--green2);}
   .match-pts.zero{color:var(--text3);}
+  @media(max-width:600px){
+    .match-row{grid-template-columns:1fr 1fr;grid-template-areas:"home away" "picks picks" "meta meta";gap:10px;}
+    .match-row .team-home{text-align:left;}
+    .match-row-meta{justify-content:center;border-top:1px solid var(--border);padding-top:10px;margin-top:2px;width:100%;}
+    .match-date{text-align:center;}
+  }
   .odds-row{display:flex;gap:8px;margin-top:0;justify-content:center;}
   .outcome-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:8px;background:rgba(76,175,80,0.12);border:2px solid rgba(76,175,80,0.25);cursor:pointer;transition:all 0.15s;user-select:none;min-width:52px;}
   .outcome-chip:hover:not(.locked){background:rgba(76,175,80,0.22);border-color:rgba(76,175,80,0.45);}
@@ -549,7 +559,7 @@ function TipsView({ user, tipsLocked }) {
             return (
               <div key={m.id} className={rowClass}>
                 <div className="team-name team-home">{tf(m.home_team)}</div>
-                <div>
+                <div className="match-picks">
                   {!tipsLocked&&<div className="tip-pick-label">Your pick</div>}
                   <div className="odds-row">
                     {[
@@ -570,13 +580,17 @@ function TipsView({ user, tipsLocked }) {
                       </div>
                     ))}
                   </div>
-                  {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:6}}>Result: {getRes(m.result_home,m.result_away)}</div>}
                   {tipsLocked&&hasTip&&<div style={{textAlign:"center",fontSize:12,color:"var(--green2)",marginTop:6,fontWeight:700}}>Tip: {tip.outcome}</div>}
                 </div>
-                <div className="team-name">{tf(m.away_team)}</div>
-                <div style={{textAlign:"right",minWidth:60}}>
-                  <div className="match-date">{dateStr}</div>
-                  {hasResult&&hasTip&&<div className={`match-pts${parseFloat(tip.pts||0)>0?" earned":" zero"}`}>{parseFloat(tip.pts||0).toFixed(2)} pts</div>}
+                <div className="team-name team-away">{tf(m.away_team)}</div>
+                <div className="match-row-meta">
+                  <span className="match-date">{dateStr}</span>
+                  {hasResult&&(
+                    <>
+                      <span className="match-result">Result {getRes(m.result_home,m.result_away)}</span>
+                      {hasTip&&<span className={`match-pts${parseFloat(tip.pts||0)>0?" earned":" zero"}`}>{parseFloat(tip.pts||0).toFixed(2)} pts</span>}
+                    </>
+                  )}
                 </div>
               </div>
             );
