@@ -140,7 +140,9 @@ const styles = `
   .match-pts.zero{color:var(--text3);}
   @media(max-width:600px){
     .match-row{grid-template-columns:1fr 1fr;grid-template-areas:"home away" "picks picks" "meta meta";gap:10px;}
-    .match-row .team-home{text-align:left;}
+    .match-row .team-name{font-size:16px;line-height:1.4;}
+    .match-row .team-home{text-align:left;justify-self:start;width:100%;}
+    .match-row .team-away{text-align:right;justify-self:end;width:100%;}
     .match-row-meta{justify-content:center;border-top:1px solid var(--border);padding-top:10px;margin-top:2px;width:100%;}
     .match-date{text-align:center;}
   }
