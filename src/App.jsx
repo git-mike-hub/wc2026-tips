@@ -23,6 +23,14 @@ const FLAGS = {
 const tf = (name) => `${FLAGS[name]||"🏳"} ${name}`;
 const ALL_TEAMS = Object.keys(FLAGS).sort();
 
+const getRes = (h, a) => (h > a ? "1" : h < a ? "2" : "X");
+const outcomeToScores = (outcome) => {
+  if (outcome === "1") return { home: 1, away: 0 };
+  if (outcome === "2") return { home: 0, away: 1 };
+  if (outcome === "X") return { home: 1, away: 1 };
+  return { home: 0, away: 0 };
+};
+
 const ROUNDS = [
   { key:"round_of_32", label:"Round of 32",    count:32, points:1.5 },
   { key:"round_of_16", label:"Round of 16",    count:16, points:2.5 },
@@ -126,10 +134,15 @@ const styles = `
   .match-pts{font-size:12px;font-weight:700;}
   .match-pts.earned{color:var(--green2);}
   .match-pts.zero{color:var(--text3);}
-  .odds-row{display:flex;gap:6px;margin-top:6px;justify-content:center;}
-  .odds-chip{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 8px;border-radius:6px;background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.2);}
-  .odds-chip-label{font-size:10px;color:#a5d6a7;font-weight:800;letter-spacing:0.05em;}
-  .odds-chip-val{font-size:12px;color:#c8e6c9;font-weight:700;}
+  .odds-row{display:flex;gap:8px;margin-top:0;justify-content:center;}
+  .outcome-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:8px;background:rgba(76,175,80,0.12);border:2px solid rgba(76,175,80,0.25);cursor:pointer;transition:all 0.15s;user-select:none;min-width:52px;}
+  .outcome-chip:hover:not(.locked){background:rgba(76,175,80,0.22);border-color:rgba(76,175,80,0.45);}
+  .outcome-chip.selected{background:var(--green);border-color:var(--green2);}
+  .outcome-chip.selected .outcome-chip-label,.outcome-chip.selected .outcome-chip-val{color:#000;}
+  .outcome-chip.locked{cursor:default;}
+  .outcome-chip-label{font-size:14px;color:#a5d6a7;font-weight:800;letter-spacing:0.05em;font-family:'Bebas Neue',sans-serif;}
+  .outcome-chip-val{font-size:12px;color:#c8e6c9;font-weight:700;}
+  .tip-pick-label{font-size:10px;color:var(--text3);text-align:center;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;}
   .save-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border);padding:12px 16px;}
   .save-bar-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .save-bar-text{font-size:13px;color:var(--text2);}
@@ -327,7 +340,7 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
           <div className="card-title">📋 How It Works</div>
           <div className="section-intro">
             <strong style={{color:"var(--green2)"}}>Group Stage (72 matches)</strong><br/>
-            Pick the exact score. Correct result = odds points. Exact score = +5 bonus.<br/><br/>
+            Tap <strong>1</strong>, <strong>X</strong>, or <strong>2</strong> for each match. Correct outcome = odds points.<br/><br/>
             <strong style={{color:"var(--green2)"}}>Knockout Rounds</strong><br/>
             R32 = 1.5 pts · R16 = 2.5 pts · QF = 4 pts · SF = 6 pts · Final = 9 pts<br/><br/>
             <strong style={{color:"var(--green2)"}}>World Champion</strong><br/>
@@ -444,7 +457,9 @@ function TipsView({ user, tipsLocked }) {
     ]);
     setMatches(ms||[]);
     const tipMap = {};
-    (mt||[]).forEach(t=>{ tipMap[t.match_id]={home:t.tip_home??0,away:t.tip_away??0,active:true,pts:t.points_earned}; });
+    (mt||[]).forEach(t=>{
+      tipMap[t.match_id]={outcome:getRes(t.tip_home,t.tip_away),active:true,pts:t.points_earned};
+    });
     setMyTips(tipMap);
     const qMap = {};
     (qt||[]).forEach(t=>{ if(!qMap[t.round])qMap[t.round]=[]; qMap[t.round].push(t.team_name); });
@@ -453,16 +468,9 @@ function TipsView({ user, tipsLocked }) {
     setLoading(false);
   };
 
-  const updateTip = (matchId, side, val) => {
+  const selectOutcome = (matchId, outcome) => {
     if (tipsLocked) return;
-    // Allow only single digit 0-9
-    const cleaned = val.replace(/[^0-9]/g,"").slice(-1);
-    const raw = cleaned===""?"":parseInt(cleaned);
-    setMyTips(prev=>{
-      const cur = prev[matchId]||{home:"",away:"",active:false};
-      const updated = {...cur,[side]:raw,active:true};
-      return {...prev,[matchId]:updated};
-    });
+    setMyTips(prev=>({...prev,[matchId]:{outcome,active:true,pts:prev[matchId]?.pts}}));
     setDirtyMatches(prev=>({...prev,[matchId]:true}));
     setDirty(true);
   };
@@ -484,7 +492,7 @@ function TipsView({ user, tipsLocked }) {
       await Promise.all(Object.entries(dirtyMatches).map(async ([matchId]) => {
         const t = myTips[matchId];
         if (!t?.active) return;
-        const h=t.home===""?0:parseInt(t.home)||0, a=t.away===""?0:parseInt(t.away)||0;
+        const { home: h, away: a } = outcomeToScores(t.outcome);
         const { data: existing } = await supabase.from("match_tips").select("id").eq("participant_id",user.id).eq("match_id",matchId).maybeSingle();
         if (existing) await supabase.from("match_tips").update({tip_home:h,tip_away:a}).eq("id",existing.id);
         else await supabase.from("match_tips").insert({participant_id:user.id,match_id:parseInt(matchId),tip_home:h,tip_away:a});
@@ -532,29 +540,36 @@ function TipsView({ user, tipsLocked }) {
             const tip = myTips[m.id]||{};
             const hasResult = m.result_home!==null&&m.result_away!==null;
             const hasTip = tip.active;
-            const getRes=(h,a)=>h>a?"1":h<a?"2":"X";
             let rowClass="match-row";
-            if (hasResult&&hasTip) rowClass+=getRes(tip.home,tip.away)===getRes(m.result_home,m.result_away)?" has-result":" wrong-result";
+            if (hasResult&&hasTip) rowClass+=tip.outcome===getRes(m.result_home,m.result_away)?" has-result":" wrong-result";
             const d=new Date(m.match_date);
             const dateStr=d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"UTC"});
             return (
               <div key={m.id} className={rowClass}>
                 <div className="team-name team-home">{tf(m.home_team)}</div>
                 <div>
-                  <div className="match-score">
-                    {tipsLocked
-                      ? <><span className="score-display">{hasTip?tip.home:"?"}</span><span className="score-sep">-</span><span className="score-display">{hasTip?tip.away:"?"}</span></>
-                      : <><input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="9" value={tip.active?(tip.home??""):""}  onChange={e=>updateTip(m.id,"home",e.target.value)} placeholder="-"/>
-                          <span className="score-sep">-</span>
-                          <input className={`score-input${tip.active?" active-tip":""}`} type="number" min="0" max="9" value={tip.active?(tip.away??""):""}  onChange={e=>updateTip(m.id,"away",e.target.value)} placeholder="-"/></>
-                    }
-                  </div>
-                  {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:4}}>Result: {m.result_home}-{m.result_away}</div>}
+                  {!tipsLocked&&<div className="tip-pick-label">Your pick</div>}
                   <div className="odds-row">
-                    <span className="odds-chip"><span className="odds-chip-label">1</span><span className="odds-chip-val">{m.odds_home}</span></span>
-                    <span className="odds-chip"><span className="odds-chip-label">X</span><span className="odds-chip-val">{m.odds_draw}</span></span>
-                    <span className="odds-chip"><span className="odds-chip-label">2</span><span className="odds-chip-val">{m.odds_away}</span></span>
+                    {[
+                      { key:"1", pts:m.odds_home },
+                      { key:"X", pts:m.odds_draw },
+                      { key:"2", pts:m.odds_away },
+                    ].map(({ key, pts }) => (
+                      <div
+                        key={key}
+                        className={`outcome-chip${hasTip&&tip.outcome===key?" selected":""}${tipsLocked?" locked":""}`}
+                        onClick={()=>!tipsLocked&&selectOutcome(m.id,key)}
+                        role="button"
+                        tabIndex={tipsLocked?-1:0}
+                        onKeyDown={e=>{ if(!tipsLocked&&(e.key==="Enter"||e.key===" ")){ e.preventDefault(); selectOutcome(m.id,key); }}}
+                      >
+                        <span className="outcome-chip-label">{key}</span>
+                        <span className="outcome-chip-val">{pts}</span>
+                      </div>
+                    ))}
                   </div>
+                  {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:6}}>Result: {m.result_home}-{m.result_away} ({getRes(m.result_home,m.result_away)})</div>}
+                  {tipsLocked&&hasTip&&<div style={{textAlign:"center",fontSize:12,color:"var(--green2)",marginTop:6,fontWeight:700}}>Tip: {tip.outcome}</div>}
                 </div>
                 <div className="team-name">{tf(m.away_team)}</div>
                 <div style={{textAlign:"right",minWidth:60}}>
@@ -631,6 +646,8 @@ function AdminView({ tipsLocked, setTipsLocked }) {
   const [lockBusy, setLockBusy] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkMsg, setBulkMsg] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
 
   useEffect(()=>{ loadAll(); },[]);
 
@@ -662,8 +679,6 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     setLockBusy(false);
   };
 
-  const getRes=(h,a)=>h>a?"1":h<a?"2":"X";
-
   const saveRankSnapshot = async () => {
     const { data: parts } = await supabase.from("participants").select("id");
     if (!parts) return;
@@ -692,8 +707,7 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     const actualRes=getRes(rh,ra);
     for (const t of (tips||[])) {
       const tipRes=getRes(t.tip_home,t.tip_away);
-      let pts = tipRes===actualRes?(tipRes==="1"?match.odds_home:tipRes==="2"?match.odds_away:match.odds_draw):0;
-      if (t.tip_home===rh&&t.tip_away===ra) pts+=5;
+      const pts = tipRes===actualRes?(tipRes==="1"?match.odds_home:tipRes==="2"?match.odds_away:match.odds_draw):0;
       await supabase.from("match_tips").update({points_earned:pts}).eq("id",t.id);
     }
   };
@@ -769,6 +783,45 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     setTimeout(()=>setMsg(m=>({...m,[participantId]:""})),3000);
   };
 
+  const resetCompetition = async () => {
+    if (!confirm("Delete ALL group-stage match tips and clear ALL match results? Everyone will start fresh. This cannot be undone.")) return;
+    setResetBusy(true);
+    setResetMsg("");
+    try {
+      const { error: rpcErr } = await supabase.rpc("wipe_match_competition_data");
+      if (rpcErr) {
+        const { count: deleted, error: delErr } = await supabase
+          .from("match_tips")
+          .delete({ count: "exact" })
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        if (delErr) throw delErr;
+        const { count: remaining } = await supabase.from("match_tips").select("*", { count: "exact", head: true });
+        if ((remaining ?? 0) > 0) {
+          setResetMsg("Could not delete tips. Run supabase/wipe-competition.sql in the Supabase SQL Editor once, then try again.");
+          setResetBusy(false);
+          return;
+        }
+        const { data: withResults } = await supabase.from("matches").select("id").not("result_home", "is", null);
+        if (withResults?.length) {
+          const { error: clearErr } = await supabase
+            .from("matches")
+            .update({ result_home: null, result_away: null, result_entered_at: null })
+            .in("id", withResults.map((m) => m.id));
+          if (clearErr) throw clearErr;
+        }
+        await supabase.from("settings").upsert({ key: "prev_ranks", value: "{}" }, { onConflict: "key" });
+      }
+      setDirtyResults(new Set());
+      setResults({});
+      await loadAll();
+      setResetMsg("✅ All match tips and results wiped.");
+    } catch {
+      setResetMsg("Could not reset. Run supabase/wipe-competition.sql in the Supabase SQL Editor once, then try again.");
+    }
+    setResetBusy(false);
+    setTimeout(() => setResetMsg(""), 6000);
+  };
+
   const toggleQualResult=(round,team,maxCount)=>{
     setQualResults(prev=>{
       const cur=prev[round]||[];
@@ -792,6 +845,17 @@ function AdminView({ tipsLocked, setTipsLocked }) {
         </div>
         <button className={`btn-sm ${tipsLocked?"btn-green":"btn-red"}`} onClick={toggleLock} disabled={lockBusy}>
           {lockBusy?"...":tipsLocked?"Unlock Tips":"Lock Tips"}
+        </button>
+      </div>
+
+      <div className="card" style={{marginBottom:16}}>
+        <div className="card-title">🔄 Fresh start</div>
+        <p className="section-intro" style={{marginBottom:12}}>
+          Wipe every group-stage tip and clear all entered match results so people can tip again from scratch.
+        </p>
+        {resetMsg && <div className={`alert ${resetMsg.startsWith("✅")?"alert-success":"alert-warn"}`} style={{marginBottom:12}}>{resetMsg}</div>}
+        <button className="btn-sm btn-red" onClick={resetCompetition} disabled={resetBusy}>
+          {resetBusy?"Wiping...":"Wipe all tips & results"}
         </button>
       </div>
 
