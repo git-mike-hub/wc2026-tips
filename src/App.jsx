@@ -140,6 +140,8 @@ const styles = `
   .outcome-chip.selected{background:var(--green);border-color:var(--green2);}
   .outcome-chip.selected .outcome-chip-label,.outcome-chip.selected .outcome-chip-val{color:#000;}
   .outcome-chip.locked{cursor:default;}
+  .outcome-chip.dirty:not(.selected){border-color:var(--gold);background:rgba(255,215,0,0.12);}
+  .outcome-chip.admin-result{padding:6px 12px;min-width:44px;}
   .outcome-chip-label{font-size:14px;color:#a5d6a7;font-weight:800;letter-spacing:0.05em;font-family:'Bebas Neue',sans-serif;}
   .outcome-chip-val{font-size:12px;color:#c8e6c9;font-weight:700;}
   .tip-pick-label{font-size:10px;color:var(--text3);text-align:center;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;}
@@ -568,7 +570,7 @@ function TipsView({ user, tipsLocked }) {
                       </div>
                     ))}
                   </div>
-                  {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:6}}>Result: {m.result_home}-{m.result_away} ({getRes(m.result_home,m.result_away)})</div>}
+                  {hasResult&&<div style={{textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:6}}>Result: {getRes(m.result_home,m.result_away)}</div>}
                   {tipsLocked&&hasTip&&<div style={{textAlign:"center",fontSize:12,color:"var(--green2)",marginTop:6,fontWeight:700}}>Tip: {tip.outcome}</div>}
                 </div>
                 <div className="team-name">{tf(m.away_team)}</div>
@@ -632,7 +634,7 @@ function TipsView({ user, tipsLocked }) {
 function AdminView({ tipsLocked, setTipsLocked }) {
   const [tab, setTab] = useState("results");
   const [matches, setMatches] = useState([]);
-  // results: { matchId: { home, away } } — tracks what's typed in the inputs
+  // results: { matchId: { outcome: "1"|"X"|"2" } }
   const [results, setResults] = useState({});
   // dirtyResults: set of matchIds that have been edited since last save
   const [dirtyResults, setDirtyResults] = useState(new Set());
@@ -661,7 +663,9 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     ]);
     setMatches(ms||[]);
     const rMap = {};
-    (ms||[]).forEach(m=>{ if(m.result_home!==null) rMap[m.id]={home:m.result_home,away:m.result_away}; });
+    (ms||[]).forEach(m=>{
+      if (m.result_home!==null) rMap[m.id]={outcome:getRes(m.result_home,m.result_away)};
+    });
     setResults(rMap);
     setParticipants(parts||[]);
     const qMap = {};
@@ -700,11 +704,11 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     await supabase.from("settings").upsert({key:"prev_ranks",value:JSON.stringify(rankMap)},{onConflict:"key"});
   };
 
-  // Single match result scorer (used by bulk save)
-  const scoreMatch = async (match, rh, ra) => {
+  const scoreMatch = async (match, outcome) => {
+    const { home: rh, away: ra } = outcomeToScores(outcome);
     await supabase.from("matches").update({result_home:rh,result_away:ra,result_entered_at:new Date().toISOString()}).eq("id",match.id);
     const { data: tips } = await supabase.from("match_tips").select("*").eq("match_id",match.id);
-    const actualRes=getRes(rh,ra);
+    const actualRes=outcome;
     for (const t of (tips||[])) {
       const tipRes=getRes(t.tip_home,t.tip_away);
       const pts = tipRes===actualRes?(tipRes==="1"?match.odds_home:tipRes==="2"?match.odds_away:match.odds_draw):0;
@@ -721,19 +725,20 @@ function AdminView({ tipsLocked, setTipsLocked }) {
       matches.forEach(m=>{ matchMap[m.id]=m; });
       const savedCount = dirtyResults.size;
       await Promise.all([...dirtyResults].map(async (matchId) => {
-        const r = results[matchId];
-        if (r?.home===""||r?.away===""||r?.home===undefined||r?.away===undefined) return;
-        const rh=parseInt(r.home), ra=parseInt(r.away);
-        if (isNaN(rh)||isNaN(ra)) return;
-        await scoreMatch(matchMap[matchId], rh, ra);
+        const outcome = results[matchId]?.outcome;
+        if (!outcome) return;
+        await scoreMatch(matchMap[matchId], outcome);
       }));
-      // Snapshot AFTER scoring so leaderboard reflects new points
       await saveRankSnapshot();
       setDirtyResults(new Set());
       setBulkMsg(`✅ ${savedCount} result${savedCount>1?"s":""} saved & scored!`);
-      // Refresh matches to show updated state
       const { data: ms } = await supabase.from("matches").select("*").order("match_number");
       setMatches(ms||[]);
+      const rMap = {};
+      (ms||[]).forEach(m=>{
+        if (m.result_home!==null) rMap[m.id]={outcome:getRes(m.result_home,m.result_away)};
+      });
+      setResults(rMap);
     } catch(e) {
       setBulkMsg("❌ Error saving. Please try again.");
     }
@@ -741,8 +746,8 @@ function AdminView({ tipsLocked, setTipsLocked }) {
     setTimeout(()=>setBulkMsg(""),5000);
   };
 
-  const updateResult = (matchId, side, val) => {
-    setResults(r=>({...r,[matchId]:{...r[matchId],[side]:val}}));
+  const selectResultOutcome = (matchId, outcome) => {
+    setResults(r=>({...r,[matchId]:{outcome}}));
     setDirtyResults(prev=>new Set([...prev,matchId]));
   };
 
@@ -873,7 +878,7 @@ function AdminView({ tipsLocked, setTipsLocked }) {
             <div className="admin-save-bar-left">
               {dirtyResults.size>0
                 ? <><strong>{dirtyResults.size} match{dirtyResults.size>1?"es":""}</strong> ready to save</>
-                : <span style={{color:"var(--text3)"}}>Enter scores below — they turn gold when edited</span>
+                : <span style={{color:"var(--text3)"}}>Tap 1, X, or 2 for each match — unsaved picks turn gold</span>
               }
               {bulkMsg && <span style={{marginLeft:12,color:bulkMsg.startsWith("✅")?"var(--green2)":"var(--red)",fontWeight:700}}>{bulkMsg}</span>}
             </div>
@@ -888,15 +893,26 @@ function AdminView({ tipsLocked, setTipsLocked }) {
               {matches.filter(m=>m.group_name===g).map(m=>{
                 const isDirty = dirtyResults.has(m.id);
                 const hasSaved = m.result_home!==null;
+                const savedOutcome = hasSaved ? getRes(m.result_home, m.result_away) : null;
+                const pick = results[m.id]?.outcome;
                 return (
                   <div key={m.id} className={`result-row${hasSaved&&!isDirty?" has-saved":""}`}>
                     <div className="result-teams">{tf(m.home_team)} vs {tf(m.away_team)}</div>
-                    <input className={`result-input${isDirty?" dirty":""}`} type="number" min="0" max="20" placeholder="0"
-                      value={results[m.id]?.home??""} onChange={e=>updateResult(m.id,"home",e.target.value)}/>
-                    <span className="result-sep">-</span>
-                    <input className={`result-input${isDirty?" dirty":""}`} type="number" min="0" max="20" placeholder="0"
-                      value={results[m.id]?.away??""} onChange={e=>updateResult(m.id,"away",e.target.value)}/>
-                    {hasSaved&&!isDirty&&<span className="result-saved">✅ {m.result_home}-{m.result_away}</span>}
+                    <div className="odds-row" style={{marginTop:0}}>
+                      {["1","X","2"].map(key=>(
+                        <div
+                          key={key}
+                          className={`outcome-chip admin-result${pick===key?" selected":""}${isDirty&&pick===key?" dirty":""}`}
+                          onClick={()=>selectResultOutcome(m.id,key)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); selectResultOutcome(m.id,key); }}}
+                        >
+                          <span className="outcome-chip-label">{key}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {hasSaved&&!isDirty&&<span className="result-saved">✅ {savedOutcome}</span>}
                     {isDirty&&<span style={{fontSize:12,color:"var(--gold)",fontWeight:600}}>● unsaved</span>}
                   </div>
                 );
