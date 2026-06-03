@@ -39,6 +39,17 @@ export default function App() {
     }, 80);
   };
 
+  const goToRules = () => {
+    if (user) {
+      setView("rules");
+      return;
+    }
+    setView("home");
+    window.setTimeout(() => {
+      document.getElementById("rules")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem("wc2026_user");
     if (saved) setUser(JSON.parse(saved));
@@ -76,6 +87,7 @@ export default function App() {
           <NavBrand />
           <div className="nav-tabs">
             <button type="button" className={`nav-tab${view === "home" ? " active" : ""}`} onClick={() => setView("home")}>Home</button>
+            <button type="button" className={`nav-tab${view === "rules" ? " active" : ""}`} onClick={goToRules}>Rules</button>
             <button type="button" className={`nav-tab${view === "leaderboard" ? " active" : ""}`} onClick={() => setView("leaderboard")}>Ranks</button>
             {user && <button type="button" className={`nav-tab${view === "tips" ? " active" : ""}`} onClick={() => setView("tips")}>My Bracket</button>}
             {user?.is_admin && <button type="button" className={`nav-tab${view === "admin" ? " active" : ""}`} onClick={() => setView("admin")}>Admin</button>}
@@ -94,6 +106,7 @@ export default function App() {
       </nav>
       <div className="app">
         {view === "home" && <HomeView user={user} onLogin={login} tipsLocked={tipsLocked} setView={setView} />}
+        {view === "rules" && user && <RulesView />}
         {view === "leaderboard" && <LeaderboardView user={user} />}
         {view === "tips" && user && <TipsView user={user} tipsLocked={tipsLocked} />}
         {view === "admin" && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked} />}
@@ -104,7 +117,7 @@ export default function App() {
 
 function HomeRulesBrief() {
   return (
-    <div className="home-rules">
+    <div className="home-rules" id="rules">
       <div className="home-rules-title">How scoring works</div>
       <ul className="home-rules-list">
         <li>
@@ -177,7 +190,6 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
             <button type="button" className="btn btn-secondary" style={{ maxWidth: 160 }} onClick={() => setView("leaderboard")}>Ranks</button>
           </div>
         </div>
-        <HomeRulesBrief />
       </div>
     );
   }
@@ -224,6 +236,15 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
           </div>
         </div>
       </div>
+      <HomeRulesBrief />
+    </div>
+  );
+}
+
+function RulesView() {
+  return (
+    <div className="rules-page">
+      <h2 className="rules-page-title">📋 Rules</h2>
       <HomeRulesBrief />
     </div>
   );

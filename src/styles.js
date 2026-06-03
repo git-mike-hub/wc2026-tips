@@ -43,7 +43,10 @@ export const styles = `
   @media(max-width:600px){.nav-trophy-icon{height:28px;}.brand-logo-hero{height:38px;max-width:min(195px,88vw);}.hero-subtitle{font-size:20px;}}
   .hero-deadline{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,0.25);border:1px solid var(--border);padding:8px 20px;border-radius:20px;font-size:13px;color:var(--text2);}
   .hero-deadline strong{color:var(--gold);}
-  .home-rules{margin:0 16px 20px;padding:18px 20px;background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);}
+  .rules-page{padding:24px 16px 40px;}
+  .rules-page-title{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gold);margin-bottom:16px;letter-spacing:0.05em;}
+  .rules-page .home-rules{margin:0;}
+  .home-rules{margin:0 16px 20px;padding:18px 20px;background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);scroll-margin-top:72px;}
   .home-rules-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.06em;margin-bottom:12px;}
   .home-rules-list{margin:0;padding:0 0 0 18px;color:var(--text2);font-size:14px;line-height:1.65;}
   .home-rules-list li{margin-bottom:8px;}
