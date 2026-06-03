@@ -5,6 +5,31 @@ import { loadResults, getParticipantPoints } from "./lib/api.js";
 import { TipsView } from "./views/TipsView.jsx";
 import { AdminView } from "./views/AdminView.jsx";
 
+const BRAND_LOGO = "/eshkol-logo.png";
+const APP_TITLE = "World Cup 2026 Competition";
+
+function NavBrand() {
+  return (
+    <div className="nav-brand">
+      <div className="brand-logo-wrap brand-logo-wrap-nav">
+        <img src={BRAND_LOGO} alt="Eshkol" className="brand-logo brand-logo-nav" />
+      </div>
+      <span className="nav-brand-title">{APP_TITLE}</span>
+    </div>
+  );
+}
+
+function HeroBrand() {
+  return (
+    <>
+      <div className="brand-logo-wrap brand-logo-wrap-hero">
+        <img src={BRAND_LOGO} alt="Eshkol" className="brand-logo brand-logo-hero" />
+      </div>
+      <h2 className="hero-subtitle">{APP_TITLE}</h2>
+    </>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("home");
@@ -45,7 +70,7 @@ export default function App() {
       <style>{styles}</style>
       <nav className="nav">
         <div className="nav-inner">
-          <div className="nav-logo">WC2026 <span>Bracket Pool</span></div>
+          <NavBrand />
           <div className="nav-tabs">
             <button type="button" className={`nav-tab${view === "home" ? " active" : ""}`} onClick={() => setView("home")}>Home</button>
             <button type="button" className={`nav-tab${view === "leaderboard" ? " active" : ""}`} onClick={() => setView("leaderboard")}>Ranks</button>
@@ -71,6 +96,30 @@ export default function App() {
         {view === "admin" && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked} />}
       </div>
     </>
+  );
+}
+
+function HomeRulesBrief() {
+  return (
+    <div className="home-rules">
+      <div className="home-rules-title">How scoring works</div>
+      <ul className="home-rules-list">
+        <li>
+          <strong>Group stage</strong> — Rank teams 1st–4th in groups A–L. <strong>1 pt</strong> per correct position.
+        </li>
+        <li>
+          <strong>Best 8 third-placed</strong> — Pick which third-placed teams advance. <strong>1 pt</strong> each correct team.
+        </li>
+        <li>
+          <strong>Knockout</strong> — Build your bracket by picking match winners. <strong>1 pt</strong> for every team you
+          correctly predicted to reach a round (Round of 16, quarters, semis, final), even if your path was different.
+        </li>
+        <li>
+          <strong>Bonuses</strong> — <strong>+5 pts</strong> per correct finalist · <strong>+10 pts</strong> for the champion.
+        </li>
+        <li>Tips lock when the admin closes submissions.</li>
+      </ul>
+    </div>
   );
 }
 
@@ -115,17 +164,17 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
     return (
       <div>
         <div className="hero">
-          <h1>WC 2026</h1>
-          <h2>Bracket Prediction Pool</h2>
+          <HeroBrand />
           <div className="hero-deadline">{tipsLocked ? <>🔒 Tips <strong>locked</strong></> : <>🟢 Tips <strong>open</strong></>}</div>
         </div>
         <div className="card">
           <div className="card-title">👋 Welcome, {user.name}!</div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button type="button" className="btn btn-primary" style={{ maxWidth: 160 }} onClick={() => setView("tips")}>My Bracket</button>
             <button type="button" className="btn btn-secondary" style={{ maxWidth: 160 }} onClick={() => setView("leaderboard")}>Ranks</button>
           </div>
         </div>
+        <HomeRulesBrief />
       </div>
     );
   }
@@ -133,10 +182,10 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
   return (
     <div>
       <div className="hero">
-        <h1>WC 2026</h1>
-        <h2>Bracket Prediction Pool</h2>
+        <HeroBrand />
         <div className="hero-deadline">{tipsLocked ? <>🔒 Tips <strong>locked</strong></> : <>🟢 Submit your full bracket before kickoff!</>}</div>
       </div>
+      <HomeRulesBrief />
       <div className="auth-grid">
         <div className="card">
           <div className="card-title">🔐 {mode === "login" ? "Sign In" : "Register"}</div>
@@ -166,17 +215,11 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
           </div>
         </div>
         <div className="card">
-          <div className="card-title">📋 How It Works</div>
-          <div className="section-intro">
-            <strong style={{ color: "var(--green2)" }}>1. Group stage</strong><br />
-            Rank all 4 teams in groups A–L (1st–4th). <strong>1 pt</strong> per correct spot.<br /><br />
-            <strong style={{ color: "var(--green2)" }}>2. Best 8 third-placed</strong><br />
-            Pick which 8 of 12 third-placed teams advance. <strong>1 pt</strong> each.<br /><br />
-            <strong style={{ color: "var(--green2)" }}>3. Knockout bracket</strong><br />
-            Your R32 draw follows official FIFA 2026 rules; pick every winner. <strong>1 pt</strong> per match.<br />
-            Finalists: <strong>+5 pts</strong> each · Champion: <strong>+10 pts</strong>.<br /><br />
-            <em style={{ color: "var(--text3)" }}>Tips lock when the admin closes submissions.</em>
-          </div>
+          <div className="card-title">🚀 Get started</div>
+          <p className="section-intro" style={{ padding: 0 }}>
+            Register with your name and a 4-digit PIN, then fill in your full bracket before tips lock.
+            Check the rankings anytime to see how you stack up.
+          </p>
         </div>
       </div>
     </div>

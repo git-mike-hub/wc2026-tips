@@ -41,9 +41,24 @@ export function getLiveFixtures(groupRankings, advancingThirdGroups, winnersByNu
   const w = { ...winnersByNum };
   const out = [];
 
+  const pushMatch = (round, m, teamA, teamB, descA, descB, feedFrom) => {
+    out.push({
+      round,
+      matchNum: m.num,
+      date: m.date,
+      city: m.city,
+      teamA,
+      teamB,
+      descA: descA ?? null,
+      descB: descB ?? null,
+      feedFrom: feedFrom ?? null,
+      label: `M${m.num}`,
+    });
+  };
+
   for (const m of MATCHES.r32) {
     const [teamA, teamB] = resolveR32MatchTeams(m, groupRankings, advancingThirdGroups);
-    out.push({ round: "r32", matchNum: m.num, teamA, teamB, label: `M${m.num}` });
+    pushMatch("r32", m, teamA, teamB, m.teams[0], m.teams[1]);
   }
 
   const chain = [
@@ -53,16 +68,13 @@ export function getLiveFixtures(groupRankings, advancingThirdGroups, winnersByNu
   ];
 
   for (const { round, defs, prior } of chain) {
-    const priorNums = prior.map((m) => m.num);
+    const priorNums = prior.map((pm) => pm.num);
     for (const m of defs) {
       const [iA, iB] = m.from;
-      out.push({
-        round,
-        matchNum: m.num,
-        teamA: w[priorNums[iA]] || null,
-        teamB: w[priorNums[iB]] || null,
-        label: `M${m.num}`,
-      });
+      pushMatch(round, m, w[priorNums[iA]] || null, w[priorNums[iB]] || null, null, null, [
+        priorNums[iA],
+        priorNums[iB],
+      ]);
     }
   }
 
@@ -75,33 +87,28 @@ export function getLiveFixtures(groupRankings, advancingThirdGroups, winnersByNu
     return w[num] === sf.teamA ? sf.teamB : sf.teamA;
   };
 
-  out.push({
-    round: "third",
-    matchNum: MATCHES.third.num,
-    teamA: loser(sf0, s0),
-    teamB: loser(sf1, s1),
-    label: `M${MATCHES.third.num}`,
-  });
-  out.push({
-    round: "final",
-    matchNum: MATCHES.final.num,
-    teamA: w[s0] || null,
-    teamB: w[s1] || null,
-    label: `M${MATCHES.final.num}`,
-  });
+  pushMatch("third", MATCHES.third, loser(sf0, s0), loser(sf1, s1), null, null, [s0, s1]);
+  pushMatch("final", MATCHES.final, w[s0] || null, w[s1] || null, null, null, [s0, s1]);
 
   return out;
 }
 
+export const BRACKET_ROUND_ORDER = [
+  { key: "r32", label: "Round of 32" },
+  { key: "r16", label: "Round of 16" },
+  { key: "quarters", label: "Quarter-finals" },
+  { key: "semis", label: "Semi-finals" },
+  { key: "third", label: "Third-place" },
+  { key: "final", label: "Final" },
+];
+
 export function getKnockoutRoundsMeta() {
-  return [
-    { key: "r32", label: "Round of 32" },
-    { key: "r16", label: "Round of 16" },
-    { key: "quarters", label: "Quarter-finals" },
-    { key: "semis", label: "Semi-finals" },
-    { key: "third", label: "Third-place play-off" },
-    { key: "final", label: "Final" },
-  ];
+  return BRACKET_ROUND_ORDER;
+}
+
+export function roundIsComplete(round, allFixtures, winners) {
+  const rf = allFixtures.filter((f) => f.round === round);
+  return rf.length > 0 && rf.every((f) => f.teamA && f.teamB && winners[f.matchNum]);
 }
 
 export function getPredictedFinalists(winnersByNum) {

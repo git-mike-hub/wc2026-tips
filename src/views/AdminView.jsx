@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { FLAGS, supabase, hashPIN } from "../constants.js";
-import { GROUP_KEYS } from "../data/groups.js";
-import { isGroupRankingComplete } from "../lib/bracket.js";
+import { isGroupRankingComplete, getThirdPlaceTeamsFromGroups } from "../lib/bracket.js";
 import {
   loadResults,
   saveGroupResults,
@@ -25,6 +24,8 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   const [resetBusy, setResetBusy] = useState(false);
   const [resetMsg, setResetMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
+  const [pendingRemove, setPendingRemove] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -101,6 +102,36 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setTimeout(() => setResetMsg(""), 5000);
   };
 
+  const confirmRemoveParticipant = async () => {
+    const p = pendingRemove;
+    if (!p) return;
+    setPendingRemove(null);
+    setRemovingId(p.id);
+    setMsg((m) => ({ ...m, [p.id]: "" }));
+    const { error } = await supabase.from("participants").delete().eq("id", p.id);
+    if (error) {
+      alert(
+        "Could not remove participant. If this is a permissions error, run supabase/participant-delete-policy.sql in the Supabase SQL editor, then try again."
+      );
+    } else {
+      setParticipants((list) => list.filter((x) => x.id !== p.id));
+      const { data: prevData } = await supabase.from("settings").select("value").eq("key", "prev_ranks").maybeSingle();
+      try {
+        const prevRanks = JSON.parse(prevData?.value || "{}");
+        if (prevRanks[p.id]) {
+          delete prevRanks[p.id];
+          await supabase.from("settings").upsert(
+            { key: "prev_ranks", value: JSON.stringify(prevRanks) },
+            { onConflict: "key" }
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setRemovingId(null);
+  };
+
   const resetPin = async (participantId) => {
     const pin = newPin[participantId];
     if (!pin || pin.length !== 4) return alert("Enter a valid 4-digit PIN");
@@ -114,6 +145,7 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   if (loading) return <div className="loading-wrap"><div className="spinner" /></div>;
 
   const groupsDone = isGroupRankingComplete(groupRanks);
+  const thirdOptions = getThirdPlaceTeamsFromGroups(groupRanks);
 
   return (
     <div>
@@ -147,7 +179,7 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
       {tab === "groups" && (
         <>
           <p className="section-intro">Enter actual finishing positions for all 12 groups.</p>
-          <GroupRankPicker flags={FLAGS} ranks={groupRanks} onChange={setGroupRanks} locked={false} />
+          <GroupRankPicker ranks={groupRanks} onChange={setGroupRanks} locked={false} />
           <button type="button" className="btn btn-primary" style={{ maxWidth: 200 }} onClick={saveGroups} disabled={saving || !groupsDone}>
             {saving ? "Saving…" : "Save & Score Groups"}
           </button>
@@ -156,36 +188,51 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
       )}
 
       {tab === "third" && (
-        <div className="card">
-          <div className="card-title">Actual best 8 third-placed groups</div>
-          <div className="team-grid">
-            {GROUP_KEYS.map((g) => (
-              <div
-                key={g}
-                className={`team-chip${thirdGroups.includes(g) ? " selected" : ""}`}
-                onClick={() =>
-                  setThirdGroups((prev) =>
-                    prev.includes(g) ? prev.filter((x) => x !== g) : prev.length >= 8 ? prev : [...prev, g]
-                  )
-                }
-              >
-                Group {g}
-              </div>
-            ))}
+        <div className="tips-inner">
+          <div className="card">
+            <div className="card-title">Actual best 8 third-placed teams</div>
+            {!groupsDone ? (
+              <p className="section-intro">Save group results first — third-placed teams come from each group&apos;s 3rd spot.</p>
+            ) : (
+              <>
+                <p className="section-intro">Select the 8 third-placed teams that actually advance.</p>
+                <div className="team-grid">
+                  {thirdOptions.map(({ group, team }) => (
+                    <div
+                      key={group}
+                      className={`team-chip${thirdGroups.includes(group) ? " selected" : ""}`}
+                      onClick={() =>
+                        setThirdGroups((prev) =>
+                          prev.includes(group) ? prev.filter((x) => x !== group) : prev.length >= 8 ? prev : [...prev, group]
+                        )
+                      }
+                    >
+                      {FLAGS[team] || "🏳"} {team}{" "}
+                      <span style={{ color: "var(--text3)", fontSize: 11 }}>(3rd {group})</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="count-badge">{thirdGroups.length}/8 selected</p>
+                <button
+                  type="button"
+                  className="btn btn-primary mt-16"
+                  style={{ maxWidth: 200 }}
+                  onClick={saveThird}
+                  disabled={saving || thirdGroups.length !== 8}
+                >
+                  Save & Score
+                </button>
+                {msg.third && <span className="result-saved" style={{ marginLeft: 12 }}>{msg.third}</span>}
+              </>
+            )}
           </div>
-          <p className="count-badge">{thirdGroups.length}/8</p>
-          <button type="button" className="btn btn-primary mt-16" style={{ maxWidth: 200 }} onClick={saveThird} disabled={saving || thirdGroups.length !== 8}>
-            Save & Score
-          </button>
-          {msg.third && <span className="result-saved" style={{ marginLeft: 12 }}>{msg.third}</span>}
         </div>
       )}
 
       {tab === "knockout" && (
         <>
-          <p className="section-intro">Tap the winner for each match (uses group + third results above).</p>
+          <p className="section-intro">Enter each match winner (used to score which teams reached each round).</p>
           <KnockoutPicker
-            flags={FLAGS}
             groupRanks={groupRanks}
             thirdGroups={thirdGroups}
             winners={knockout}
@@ -215,11 +262,55 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
                   onChange={(e) => setNewPin((n) => ({ ...n, [p.id]: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
                 />
                 <button type="button" className="btn-sm btn-green" onClick={() => resetPin(p.id)}>Reset PIN</button>
+                {!p.is_admin && (
+                  <button
+                    type="button"
+                    className="btn-sm btn-red"
+                    disabled={removingId === p.id}
+                    onClick={() => setPendingRemove({ id: p.id, name: p.name })}
+                  >
+                    {removingId === p.id ? "Removing…" : "Remove"}
+                  </button>
+                )}
                 {msg[p.id] && <span className="result-saved">{msg[p.id]}</span>}
               </div>
             </div>
           ))}
         </>
+      )}
+
+      {pendingRemove && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-participant-title"
+          onClick={() => setPendingRemove(null)}
+        >
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 id="remove-participant-title" className="modal-title">Remove participant?</h3>
+            <p className="modal-text">
+              Do you really want to remove this user?
+            </p>
+            <p className="modal-text">
+              <span className="modal-name">{pendingRemove.name}</span> will be deleted along with all of their bracket tips.
+            </p>
+            <p className="modal-warn">This cannot be undone.</p>
+            <div className="modal-actions">
+              <button type="button" className="btn-sm btn-secondary" style={{ background: "rgba(0,0,0,0.25)", color: "var(--text)" }} onClick={() => setPendingRemove(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-sm btn-red"
+                disabled={removingId === pendingRemove.id}
+                onClick={confirmRemoveParticipant}
+              >
+                {removingId === pendingRemove.id ? "Removing…" : "Yes, remove"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

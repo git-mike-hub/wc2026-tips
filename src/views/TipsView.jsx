@@ -63,16 +63,16 @@ export function TipsView({ user, tipsLocked }) {
   if (loading) return <div className="loading-wrap"><div className="spinner" /></div>;
 
   return (
-    <div style={{ paddingBottom: tipsLocked ? 0 : 80 }}>
-      <div style={{ margin: "24px 0 16px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: "var(--green)" }}>⚽ My Bracket</h2>
+    <div className={tab === "knockout" ? "app-wide" : ""} style={{ paddingBottom: tipsLocked ? 0 : 80 }}>
+      <div className="tips-inner" style={{ margin: "24px 0 16px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: "var(--gold)" }}>⚽ My Bracket</h2>
         {tipsLocked
           ? <span className="alert alert-warn" style={{ margin: 0 }}>🔒 Tips locked — view only</span>
           : <span className="text-muted">{groupsDone ? "Groups ✓" : "Groups…"} · {thirdDone ? "3rd ✓" : `${thirdGroups.length}/8 3rd`} · {koCount} KO picks</span>}
       </div>
       {saveMsg && <div className={`alert ${saveMsg.startsWith("✅") ? "alert-success" : "alert-error"}`}>{saveMsg}</div>}
 
-      <div className="tips-tabs">
+      <div className="tips-tabs" style={tab === "knockout" ? { padding: "0 16px" } : undefined}>
         <button type="button" className={`tips-tab${tab === "groups" ? " active" : ""}`} onClick={() => setTab("groups")}>Group Stage</button>
         <button type="button" className={`tips-tab${tab === "third" ? " active" : ""}`} onClick={() => setTab("third")} disabled={!groupsDone}>Best 8 Third</button>
         <button type="button" className={`tips-tab${tab === "knockout" ? " active" : ""}`} onClick={() => setTab("knockout")} disabled={!thirdDone}>Knockout</button>
@@ -80,9 +80,8 @@ export function TipsView({ user, tipsLocked }) {
 
       {tab === "groups" && (
         <>
-          <p className="section-intro">Rank all 4 teams in each group (tap 1st, then 2nd, then 3rd — 4th is automatic). <strong>1 pt</strong> per correct position.</p>
+          <p className="section-intro">Rank all 4 teams in each group (tap 1st → 4th; 4th fills automatically). <strong>1 pt</strong> per correct position.</p>
           <GroupRankPicker
-            flags={FLAGS}
             ranks={groupRanks}
             onChange={(r) => { setGroupRanks(r); setDirty(true); }}
             locked={tipsLocked}
@@ -98,6 +97,7 @@ export function TipsView({ user, tipsLocked }) {
       )}
 
       {tab === "third" && (
+        <div className="tips-inner">
         <div className="card">
           <div className="card-title">Best 8 third-placed teams</div>
           <p className="section-intro">Pick which 8 of the 12 third-placed teams advance. <strong>1 pt</strong> each correct pick.</p>
@@ -118,13 +118,12 @@ export function TipsView({ user, tipsLocked }) {
             <button type="button" className="btn btn-primary mt-16" style={{ maxWidth: 220 }} onClick={() => setTab("knockout")}>Continue to Knockout →</button>
           )}
         </div>
+        </div>
       )}
 
       {tab === "knockout" && (
         <>
-          <p className="section-intro">Bracket follows official FIFA 2026 rules. Tap the winner of each match. <strong>1 pt</strong> per correct pick · <strong>+5</strong> per finalist · <strong>+10</strong> champion.</p>
           <KnockoutPicker
-            flags={FLAGS}
             groupRanks={groupRanks}
             thirdGroups={thirdGroups}
             winners={knockout}
