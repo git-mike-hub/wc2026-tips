@@ -6,14 +6,28 @@ import { TipsView } from "./views/TipsView.jsx";
 import { AdminView } from "./views/AdminView.jsx";
 
 const BRAND_LOGO = "/eshkol-logo.png";
+const WORLD_CUP_TROPHY = "/world-cup-trophy.png";
 const APP_TITLE = "World Cup 2026 Competition";
+
+function BrandMark({ variant }) {
+  const isNav = variant === "nav";
+  return (
+    <div className={`brand-mark${isNav ? " brand-mark-nav" : " brand-mark-hero"}`}>
+      <img
+        src={WORLD_CUP_TROPHY}
+        alt=""
+        className={`brand-trophy-side${isNav ? " brand-trophy-side-nav" : " brand-trophy-side-hero"}`}
+        aria-hidden
+      />
+      <img src={BRAND_LOGO} alt="Eshkol" className={`brand-logo${isNav ? " brand-logo-nav" : " brand-logo-hero"}`} />
+    </div>
+  );
+}
 
 function NavBrand() {
   return (
     <div className="nav-brand">
-      <div className="brand-logo-wrap brand-logo-wrap-nav">
-        <img src={BRAND_LOGO} alt="Eshkol" className="brand-logo brand-logo-nav" />
-      </div>
+      <BrandMark variant="nav" />
       <span className="nav-brand-title">{APP_TITLE}</span>
     </div>
   );
@@ -22,9 +36,7 @@ function NavBrand() {
 function HeroBrand() {
   return (
     <>
-      <div className="brand-logo-wrap brand-logo-wrap-hero">
-        <img src={BRAND_LOGO} alt="Eshkol" className="brand-logo brand-logo-hero" />
-      </div>
+      <BrandMark variant="hero" />
       <h2 className="hero-subtitle">{APP_TITLE}</h2>
     </>
   );

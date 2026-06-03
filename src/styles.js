@@ -20,13 +20,15 @@ export const styles = `
   .app{max-width:900px;margin:0 auto;padding:0 16px 80px;}
   .app-wide{max-width:none;padding:0 0 80px;}
   .nav{background:rgba(10,22,40,0.92);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;padding:0 16px;backdrop-filter:blur(8px);}
-  .nav-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;gap:8px;}
+  .nav-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:72px;gap:8px;}
   .nav-brand{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:1;}
-  .brand-logo-wrap{background:rgba(255,255,255,0.5);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.12);}
-  .brand-logo-wrap-nav{border-radius:12px;padding:5px 10px;}
-  .brand-logo-wrap-hero{border-radius:20px;padding:12px 20px;margin:0 auto 14px;}
+  .brand-mark{display:inline-flex;align-items:center;gap:6px;line-height:0;}
+  .brand-mark-hero{margin:0 auto 14px;gap:10px;}
+  .brand-trophy-side{display:block;object-fit:contain;width:auto;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.25));}
+  .brand-trophy-side-nav{height:57px;margin-right:2px;}
+  .brand-trophy-side-hero{height:108px;margin-right:4px;}
   .brand-logo{display:block;object-fit:contain;width:auto;background:transparent;}
-  .brand-logo-nav{height:34px;max-width:110px;}
+  .brand-logo-nav{height:75px;width:auto;max-width:min(330px,58vw);}
   .nav-brand-title{font-size:12px;font-weight:600;color:var(--text2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   @media(max-width:720px){.nav-brand-title{display:none;}}
   .nav-tabs{display:flex;gap:4px;flex-wrap:wrap;}
@@ -38,9 +40,9 @@ export const styles = `
   .btn-logout{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
   .btn-logout:hover{border-color:var(--red);color:var(--red);}
   .hero{background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);padding:48px 32px;text-align:center;margin:24px 16px;position:relative;overflow:hidden;}
-  .brand-logo-hero{height:80px;max-width:min(320px,90vw);}
+  .brand-logo-hero{height:192px;width:auto;max-width:min(780px,96vw);}
   .hero-subtitle{font-size:26px;color:var(--text);font-weight:600;margin-bottom:24px;font-family:'DM Sans',sans-serif;letter-spacing:0.02em;}
-  @media(max-width:600px){.brand-logo-hero{height:64px;}.brand-logo-wrap-hero{border-radius:16px;padding:10px 14px;}.hero-subtitle{font-size:20px;}}
+  @media(max-width:600px){.nav-inner{height:64px;}.brand-trophy-side-nav{height:48px;}.brand-trophy-side-hero{height:84px;}.brand-logo-nav{height:66px;max-width:min(270px,62vw);}.brand-logo-hero{height:150px;}.hero-subtitle{font-size:20px;}}
   .hero-deadline{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,0.25);border:1px solid var(--border);padding:8px 20px;border-radius:20px;font-size:13px;color:var(--text2);}
   .hero-deadline strong{color:var(--gold);}
   .home-rules{margin:0 16px 20px;padding:18px 20px;background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);}
