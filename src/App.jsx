@@ -9,21 +9,6 @@ const BRAND_LOGO = "/eshkol-logo.png";
 const WORLD_CUP_TROPHY = "/world-cup-trophy.png";
 const APP_TITLE = "World Cup 2026 Competition";
 
-function BrandMark({ variant }) {
-  const isNav = variant === "nav";
-  return (
-    <div className={`brand-mark${isNav ? " brand-mark-nav" : " brand-mark-hero"}`}>
-      <img
-        src={WORLD_CUP_TROPHY}
-        alt=""
-        className={`brand-trophy-side${isNav ? " brand-trophy-side-nav" : " brand-trophy-side-hero"}`}
-        aria-hidden
-      />
-      <img src={BRAND_LOGO} alt="Eshkol" className={`brand-logo${isNav ? " brand-logo-nav" : " brand-logo-hero"}`} />
-    </div>
-  );
-}
-
 function NavBrand() {
   return (
     <div className="nav-brand">
@@ -35,7 +20,7 @@ function NavBrand() {
 function HeroBrand() {
   return (
     <>
-      <BrandMark variant="hero" />
+      <img src={BRAND_LOGO} alt="Eshkol" className="brand-logo brand-logo-hero" />
       <h2 className="hero-subtitle">{APP_TITLE}</h2>
     </>
   );
@@ -46,6 +31,13 @@ export default function App() {
   const [view, setView] = useState("home");
   const [loading, setLoading] = useState(true);
   const [tipsLocked, setTipsLocked] = useState(false);
+
+  const scrollToSignIn = () => {
+    setView("home");
+    window.setTimeout(() => {
+      document.getElementById("sign-in")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("wc2026_user");
@@ -95,7 +87,7 @@ export default function App() {
                 <button type="button" className="btn-logout" onClick={logout}>Logout</button>
               </>
             ) : (
-              <button type="button" className="btn-logout" style={{ color: "var(--green2)", borderColor: "var(--green-dim)" }} onClick={() => setView("home")}>Sign In</button>
+              <button type="button" className="btn-logout" style={{ color: "var(--green2)", borderColor: "var(--green-dim)" }} onClick={scrollToSignIn}>Sign In</button>
             )}
           </div>
         </div>
@@ -196,9 +188,15 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
         <HeroBrand />
         <div className="hero-deadline">{tipsLocked ? <>🔒 Tips <strong>locked</strong></> : <>🟢 Submit your full bracket before kickoff!</>}</div>
       </div>
-      <HomeRulesBrief />
-      <div className="auth-grid">
+      <div className="home-auth-stack">
         <div className="card">
+          <div className="card-title">🚀 Get started</div>
+          <p className="section-intro" style={{ padding: 0 }}>
+            Register with your name and a 4-digit PIN, then fill in your full bracket before tips lock.
+            Check the rankings anytime to see how you stack up.
+          </p>
+        </div>
+        <div className="card" id="sign-in">
           <div className="card-title">🔐 {mode === "login" ? "Sign In" : "Register"}</div>
           {error && <div className="alert alert-error">{error}</div>}
           {success && <div className="alert alert-success">{success}</div>}
@@ -225,14 +223,8 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
             </button>
           </div>
         </div>
-        <div className="card">
-          <div className="card-title">🚀 Get started</div>
-          <p className="section-intro" style={{ padding: 0 }}>
-            Register with your name and a 4-digit PIN, then fill in your full bracket before tips lock.
-            Check the rankings anytime to see how you stack up.
-          </p>
-        </div>
       </div>
+      <HomeRulesBrief />
     </div>
   );
 }

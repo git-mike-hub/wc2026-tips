@@ -23,7 +23,6 @@ export const styles = `
   .nav-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;gap:8px;}
   .nav-brand{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:1;}
   .brand-mark{display:inline-flex;align-items:center;gap:6px;line-height:0;}
-  .brand-mark-hero{margin:0 auto 14px;gap:10px;}
   .brand-trophy-side{display:block;object-fit:contain;width:auto;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.25));}
   .brand-trophy-side-nav{height:57px;margin-right:2px;}
   .brand-trophy-side-hero{height:108px;margin-right:4px;}
@@ -39,9 +38,9 @@ export const styles = `
   .btn-logout{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
   .btn-logout:hover{border-color:var(--red);color:var(--red);}
   .hero{background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);padding:48px 32px;text-align:center;margin:24px 16px;position:relative;overflow:hidden;}
-  .brand-logo-hero{height:192px;width:auto;max-width:min(780px,96vw);}
+  .brand-logo-hero{height:96px;width:auto;max-width:min(390px,92vw);margin:0 auto 14px;}
   .hero-subtitle{font-size:26px;color:var(--text);font-weight:600;margin-bottom:24px;font-family:'DM Sans',sans-serif;letter-spacing:0.02em;}
-  @media(max-width:600px){.nav-trophy-icon{height:28px;}.brand-mark-hero{gap:5px;}.brand-trophy-side-hero{height:42px;}.brand-logo-hero{height:75px;max-width:min(390px,92vw);}.hero-subtitle{font-size:20px;}}
+  @media(max-width:600px){.nav-trophy-icon{height:28px;}.brand-logo-hero{height:38px;max-width:min(195px,88vw);}.hero-subtitle{font-size:20px;}}
   .hero-deadline{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,0.25);border:1px solid var(--border);padding:8px 20px;border-radius:20px;font-size:13px;color:var(--text2);}
   .hero-deadline strong{color:var(--gold);}
   .home-rules{margin:0 16px 20px;padding:18px 20px;background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);}
@@ -53,6 +52,7 @@ export const styles = `
   .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
   .card-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.05em;color:var(--gold);margin-bottom:16px;}
   .auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+  .home-auth-stack{display:flex;flex-direction:column;gap:16px;margin:20px 16px 8px;}
   @media(max-width:600px){.auth-grid{grid-template-columns:1fr;}}
   .form-group{margin-bottom:14px;}
   .form-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;display:block;}
