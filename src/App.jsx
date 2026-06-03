@@ -27,7 +27,7 @@ function BrandMark({ variant }) {
 function NavBrand() {
   return (
     <div className="nav-brand">
-      <span className="nav-brand-title">{APP_TITLE}</span>
+      <img src={WORLD_CUP_TROPHY} alt="World Cup 2026" className="nav-trophy-icon" />
     </div>
   );
 }

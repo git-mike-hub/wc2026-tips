@@ -29,8 +29,7 @@ export const styles = `
   .brand-trophy-side-hero{height:108px;margin-right:4px;}
   .brand-logo{display:block;object-fit:contain;width:auto;background:transparent;}
   .brand-logo-nav{height:75px;width:auto;max-width:min(330px,58vw);}
-  .nav-brand-title{font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:400;color:var(--gold);letter-spacing:0.04em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  @media(max-width:480px){.nav-brand-title{font-size:15px;max-width:42vw;}}
+  .nav-trophy-icon{display:block;height:34px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));}
   .nav-tabs{display:flex;gap:4px;flex-wrap:wrap;}
   .nav-tab{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;background:transparent;color:var(--text2);transition:all 0.15s;}
   .nav-tab:hover{background:var(--green-dim);color:var(--text);}
@@ -42,7 +41,7 @@ export const styles = `
   .hero{background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);padding:48px 32px;text-align:center;margin:24px 16px;position:relative;overflow:hidden;}
   .brand-logo-hero{height:192px;width:auto;max-width:min(780px,96vw);}
   .hero-subtitle{font-size:26px;color:var(--text);font-weight:600;margin-bottom:24px;font-family:'DM Sans',sans-serif;letter-spacing:0.02em;}
-  @media(max-width:600px){.brand-trophy-side-hero{height:84px;}.brand-logo-hero{height:150px;}.hero-subtitle{font-size:20px;}}
+  @media(max-width:600px){.nav-trophy-icon{height:28px;}.brand-mark-hero{gap:5px;}.brand-trophy-side-hero{height:42px;}.brand-logo-hero{height:75px;max-width:min(390px,92vw);}.hero-subtitle{font-size:20px;}}
   .hero-deadline{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,0.25);border:1px solid var(--border);padding:8px 20px;border-radius:20px;font-size:13px;color:var(--text2);}
   .hero-deadline strong{color:var(--gold);}
   .home-rules{margin:0 16px 20px;padding:18px 20px;background:rgba(10,22,40,0.75);border:1px solid var(--border);border-radius:var(--radius);}
