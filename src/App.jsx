@@ -27,7 +27,6 @@ function BrandMark({ variant }) {
 function NavBrand() {
   return (
     <div className="nav-brand">
-      <BrandMark variant="nav" />
       <span className="nav-brand-title">{APP_TITLE}</span>
     </div>
   );
