@@ -113,7 +113,8 @@ export const styles = `
   .group-header::after{content:'';flex:1;height:1px;background:var(--border);}
   .group-board{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);}
   .group-board-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
-  .group-board-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;letter-spacing:0.06em;margin:0;line-height:1;}
+  .group-board-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;letter-spacing:0.06em;margin:0;line-height:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .group-pts-badge{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px;background:rgba(129,199,132,0.25);border:1px solid rgba(129,199,132,0.6);color:#a5d6a7;letter-spacing:0;}
   .group-reset-btn{padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;}
   .group-reset-btn:hover{border-color:rgba(255,107,107,0.5);color:var(--red);background:rgba(255,107,107,0.12);}
   .group-board-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:stretch;}
@@ -136,6 +137,13 @@ export const styles = `
   .team-chip{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text2);cursor:pointer;user-select:none;}
   .team-chip:hover{border-color:rgba(255,255,255,0.3);color:var(--text);}
   .team-chip.selected{background:rgba(245,197,24,0.25);border-color:var(--gold);color:var(--gold);}
+  .team-chip.score-correct{border-color:rgba(129,199,132,0.75);}
+  .team-chip.score-wrong{border-color:rgba(255,107,107,0.5);}
+  .chip-pts{margin-left:6px;font-size:11px;font-weight:700;color:var(--text3);}
+  .chip-pts.earned{color:#81c784;}
+  .section-pts-badge{margin-left:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;color:#81c784;letter-spacing:0;}
+  .tips-score-summary{margin:0 16px 16px;}
+  .tips-score-breakdown{font-weight:400;color:var(--text2);font-size:13px;}
   .count-badge{font-size:11px;color:var(--text3);margin-top:8px;}
   .tips-tabs{display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;padding:0 16px;}
   .tips-tab{padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);background:rgba(10,22,40,0.5);color:var(--text2);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;}
@@ -178,6 +186,10 @@ export const styles = `
   .bracket-team-name{flex:1;font-weight:700;color:var(--navy);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bracket-team-row.selected .bracket-team-name{color:#fff;}
   .bracket-team-seed{font-size:11px;color:var(--bracket-muted);font-weight:600;flex-shrink:0;}
+  .bracket-team-pts{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.08);color:var(--bracket-muted);flex-shrink:0;}
+  .bracket-team-row.selected .bracket-team-pts{background:rgba(255,255,255,0.2);color:rgba(255,255,255,0.9);}
+  .bracket-team-pts.earned{background:rgba(46,125,50,0.2);color:#2e7d32;}
+  .bracket-team-row.selected .bracket-team-pts.earned{background:rgba(255,255,255,0.25);color:#a5d6a7;}
   .bracket-pending-msg{font-size:12px;color:var(--bracket-muted);padding:8px 0;}
   .bracket-result-meta{font-size:11px;color:var(--bracket-muted);margin-top:8px;display:block;}
   .bracket-hint{padding:8px 16px 0;font-size:12px;color:var(--bracket-muted);text-align:center;}

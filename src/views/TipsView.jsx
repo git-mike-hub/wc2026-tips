@@ -1,10 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FLAGS, supabase } from "../constants.js";
+import { GROUP_KEYS } from "../data/groups.js";
 import {
   isGroupRankingComplete,
   getThirdPlaceTeamsFromGroups,
   isBracketTipsComplete,
+  normalizeGroupSlots,
 } from "../lib/bracket.js";
+import {
+  calculateTotalPoints,
+  hasAnyGroupResults,
+  hasThirdPlaceResults,
+  hasKnockoutResultsForScoring,
+  scoreGroupByGroup,
+  scoreThirdPlaceTips,
+} from "../lib/scoring.js";
 import { loadParticipantTips, saveParticipantTips, loadResults } from "../lib/api.js";
 import { formatSaveError } from "../lib/saveErrors.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
@@ -44,6 +54,32 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
   const thirdOptions = getThirdPlaceTeamsFromGroups(groupRanks);
   const thirdDone = thirdGroups.length === 8;
   const koCount = Object.keys(knockout).length;
+
+  const normalizedRanks = useMemo(() => {
+    const out = {};
+    for (const g of GROUP_KEYS) {
+      out[g] = normalizeGroupSlots(groupRanks[g]);
+    }
+    return out;
+  }, [groupRanks]);
+
+  const showGroupScore = hasAnyGroupResults(results?.groups);
+  const showThirdScore = hasThirdPlaceResults(results?.thirdGroups);
+  const showKoScore = hasKnockoutResultsForScoring(results?.knockout);
+
+  const groupPoints = useMemo(
+    () => (showGroupScore ? scoreGroupByGroup(normalizedRanks, results?.groups) : {}),
+    [showGroupScore, normalizedRanks, results?.groups]
+  );
+
+  const thirdPoints = showThirdScore
+    ? scoreThirdPlaceTips(thirdGroups, results.thirdGroups)
+    : null;
+
+  const pointsSummary = useMemo(() => {
+    if (!results) return null;
+    return calculateTotalPoints(normalizedRanks, thirdGroups, knockout, results);
+  }, [results, normalizedRanks, thirdGroups, knockout]);
 
   const toggleThird = (group) => {
     if (tipsLocked) return;
@@ -99,6 +135,20 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
           : <span className="text-muted">{groupsDone ? "Groups ✓" : "Groups…"} · {thirdDone ? "3rd ✓" : `${thirdGroups.length}/8 3rd`} · {koCount} KO picks</span>}
       </div>
       {saveMsg && <div className={`alert ${saveMsg.startsWith("✅") ? "alert-success" : "alert-error"}`}>{saveMsg}</div>}
+      {(showGroupScore || showThirdScore || showKoScore) && pointsSummary && (
+        <div className="tips-score-summary alert alert-success">
+          Your points: <strong>{pointsSummary.total}</strong>
+          {(showGroupScore || showThirdScore || showKoScore) && (
+            <span className="tips-score-breakdown">
+              {showGroupScore && <> · Groups {pointsSummary.groupPts}</>}
+              {showThirdScore && <> · 3rd {pointsSummary.thirdPts}</>}
+              {showKoScore && <> · KO {pointsSummary.koPts}</>}
+              {showKoScore && pointsSummary.finalistPts > 0 && <> · Finalists +{pointsSummary.finalistPts}</>}
+              {showKoScore && pointsSummary.champPts > 0 && <> · Champion +{pointsSummary.champPts}</>}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="tips-tabs" style={tab === "knockout" ? { padding: "0 16px" } : undefined}>
         <button type="button" className={`tips-tab${tab === "groups" ? " active" : ""}`} onClick={() => setTab("groups")}>Group Stage</button>
@@ -114,7 +164,8 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
             onChange={(r) => { setGroupRanks(r); setDirty(true); }}
             locked={tipsLocked}
             results={results?.groups}
-            showScore={!!Object.keys(results?.groups || {}).length}
+            showScore={showGroupScore}
+            groupPoints={groupPoints}
           />
           {!tipsLocked && groupsDone && (
             <div className="step-nav">
@@ -135,19 +186,32 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
       {tab === "third" && (
         <div className="tips-inner">
         <div className="card">
-          <div className="card-title">Best 8 third-placed teams</div>
+          <div className="card-title">
+            Best 8 third-placed teams
+            {showThirdScore && thirdPoints != null && (
+              <span className="section-pts-badge">{thirdPoints} / 8 pts</span>
+            )}
+          </div>
           <p className="section-intro">Pick which 8 of the 12 third-placed teams advance. <strong>1 pt</strong> each correct pick.</p>
           <div className="team-grid">
-            {thirdOptions.map(({ group, team }) => (
+            {thirdOptions.map(({ group, team }) => {
+              const picked = thirdGroups.includes(group);
+              const correct = showThirdScore && picked && results.thirdGroups.includes(group);
+              const wrong = showThirdScore && picked && !results.thirdGroups.includes(group);
+              return (
               <div
                 key={group}
-                className={`team-chip${thirdGroups.includes(group) ? " selected" : ""}${tipsLocked ? " locked" : ""}`}
+                className={`team-chip${picked ? " selected" : ""}${correct ? " score-correct" : ""}${wrong ? " score-wrong" : ""}${tipsLocked ? " locked" : ""}`}
                 style={tipsLocked ? { pointerEvents: "none" } : {}}
                 onClick={() => toggleThird(group)}
               >
                 {FLAGS[team] || "🏳"} {team} <span style={{ color: "var(--text3)", fontSize: 11 }}>(3rd {group})</span>
+                {showThirdScore && picked && (
+                  <span className={`chip-pts${correct ? " earned" : ""}`}>{correct ? "1 pt" : "0 pt"}</span>
+                )}
               </div>
-            ))}
+            );
+            })}
           </div>
           <p className="count-badge">{thirdGroups.length}/8 selected</p>
           {!tipsLocked && thirdDone && (
@@ -177,7 +241,7 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
             }}
             locked={tipsLocked}
             actualWinners={results?.knockout}
-            showScore={!!Object.keys(results?.knockout || {}).length}
+            showScore={showKoScore}
           />
         </>
       )}

@@ -2,7 +2,7 @@ import { GROUPS, GROUP_KEYS } from "../data/groups.js";
 import { applyAutoFourthSlot, normalizeGroupSlots } from "../lib/bracket.js";
 import { FLAGS, tc } from "../constants.js";
 
-export function GroupRankPicker({ ranks, onChange, locked, results, showScore }) {
+export function GroupRankPicker({ ranks, onChange, locked, results, showScore, groupPoints }) {
   const toggle = (group, team) => {
     if (locked) return;
     let slots = normalizeGroupSlots(ranks[group]);
@@ -41,7 +41,12 @@ export function GroupRankPicker({ ranks, onChange, locked, results, showScore })
         return (
           <div key={g} className="group-board">
             <div className="group-board-head">
-              <h3 className="group-board-title">Group {g}</h3>
+              <h3 className="group-board-title">
+                Group {g}
+                {showScore && groupPoints?.[g] != null && (
+                  <span className="group-pts-badge">{groupPoints[g]} pt{groupPoints[g] === 1 ? "" : "s"}</span>
+                )}
+              </h3>
               {!locked && hasPicks && (
                 <button
                   type="button"

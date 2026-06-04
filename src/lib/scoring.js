@@ -123,13 +123,56 @@ export function calculateTotalPoints(groupTips, thirdTips, knockoutTips, results
   };
 }
 
-/** UI helper: class suffix for a team row when results exist. */
-export function teamReachScoreClass(team, fixtureRound, tipsByNum, actualByNum, showScore) {
-  if (!showScore || !team) return "";
+export function isGroupResultsComplete(actualByGroup, group) {
+  const actual = actualByGroup?.[group];
+  return !!(actual?.length === 4 && actual.every(Boolean));
+}
+
+export function hasAnyGroupResults(actualByGroup) {
+  return GROUP_KEYS.some((g) => isGroupResultsComplete(actualByGroup, g));
+}
+
+export function scoreSingleGroup(tipSlots, actualSlots) {
+  if (!actualSlots?.length || !actualSlots.every(Boolean)) return null;
+  let pts = 0;
+  for (let i = 0; i < 4; i++) {
+    if (tipSlots?.[i] && actualSlots[i] && tipSlots[i] === actualSlots[i]) pts += 1;
+  }
+  return pts;
+}
+
+export function scoreGroupByGroup(tipsByGroup, actualByGroup) {
+  const byGroup = {};
+  for (const g of GROUP_KEYS) {
+    byGroup[g] = isGroupResultsComplete(actualByGroup, g)
+      ? scoreSingleGroup(tipsByGroup[g], actualByGroup[g])
+      : null;
+  }
+  return byGroup;
+}
+
+export function hasThirdPlaceResults(actualGroups) {
+  return (actualGroups || []).length === 8;
+}
+
+export function hasKnockoutResultsForScoring(actualByNum) {
+  return KNOCKOUT_SCORING_ROUNDS.some(({ key }) => getTeamsReachingRound(actualByNum, key).complete);
+}
+
+/** null = no badge; 0/1 = points for predicted reach when results exist. */
+export function teamReachPoints(team, fixtureRound, tipsByNum, actualByNum, showScore) {
+  if (!showScore || !team) return null;
   const reaching = FIXTURE_ROUND_TO_REACHING[fixtureRound];
-  if (!reaching) return "";
+  if (!reaching) return null;
   const act = getTeamsReachingRound(actualByNum, reaching);
   const tip = getTeamsReachingRound(tipsByNum, reaching);
-  if (!act.complete || !tip.teams.has(team)) return "";
-  return act.teams.has(team) ? " reach-correct" : " reach-wrong";
+  if (!act.complete || !tip.teams.has(team)) return null;
+  return act.teams.has(team) ? 1 : 0;
+}
+
+/** UI helper: class suffix for a team row when results exist. */
+export function teamReachScoreClass(team, fixtureRound, tipsByNum, actualByNum, showScore) {
+  const pts = teamReachPoints(team, fixtureRound, tipsByNum, actualByNum, showScore);
+  if (pts === null) return "";
+  return pts === 1 ? " reach-correct" : " reach-wrong";
 }

@@ -8,6 +8,7 @@ import {
   FIXTURE_ROUND_TO_REACHING,
   scoreKnockoutBreakdown,
   teamReachScoreClass,
+  teamReachPoints,
 } from "../lib/scoring.js";
 import { FLAGS } from "../constants.js";
 
@@ -181,6 +182,13 @@ export function KnockoutPicker({
                                   actualWinners,
                                   showScore
                                 );
+                                const reachPts = teamReachPoints(
+                                  team,
+                                  f.round,
+                                  winners,
+                                  actualWinners,
+                                  showScore
+                                );
                                 return (
                                   <button
                                     key={team}
@@ -192,6 +200,14 @@ export function KnockoutPicker({
                                     <span className="bracket-team-flag">{FLAGS[team] || "🏳"}</span>
                                     <span className="bracket-team-name">{team}</span>
                                     {side.seed && <span className="bracket-team-seed">{side.seed}</span>}
+                                    {reachPts !== null && (
+                                      <span
+                                        className={`bracket-team-pts${reachPts === 1 ? " earned" : ""}`}
+                                        title={reachPts === 1 ? "Correct reach pick" : "Did not advance"}
+                                      >
+                                        {reachPts} pt
+                                      </span>
+                                    )}
                                   </button>
                                 );
                               })}
