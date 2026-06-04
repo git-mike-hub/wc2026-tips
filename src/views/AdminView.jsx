@@ -8,6 +8,7 @@ import {
   saveKnockoutResult,
   computeParticipantRankMap,
   persistPrevRanks,
+  countRankMovements,
   loadParticipantsBracketReady,
 } from "../lib/api.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
@@ -58,22 +59,32 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setLockBusy(false);
   };
 
+  const applyScoringWithRankBaseline = async (applySave) => {
+    const ranksBefore = await computeParticipantRankMap(supabase);
+    await applySave();
+    const ranksAfter = await computeParticipantRankMap(supabase);
+    await persistPrevRanks(supabase, ranksBefore);
+    return countRankMovements(ranksBefore, ranksAfter);
+  };
+
   const saveGroups = async () => {
     setSaving(true);
-    const ranksBefore = await computeParticipantRankMap(supabase);
-    await saveGroupResults(supabase, groupRanks);
-    await persistPrevRanks(supabase, ranksBefore);
-    setMsg((m) => ({ ...m, groups: "✅ Saved & scored" }));
+    const moved = await applyScoringWithRankBaseline(() => saveGroupResults(supabase, groupRanks));
+    setMsg((m) => ({
+      ...m,
+      groups: moved > 0 ? `✅ Saved & scored · ${moved} players moved in rankings` : "✅ Saved & scored",
+    }));
     setTimeout(() => setMsg((m) => ({ ...m, groups: "" })), 3000);
     setSaving(false);
   };
 
   const saveThird = async () => {
     setSaving(true);
-    const ranksBefore = await computeParticipantRankMap(supabase);
-    await saveThirdResults(supabase, thirdGroups);
-    await persistPrevRanks(supabase, ranksBefore);
-    setMsg((m) => ({ ...m, third: "✅ Saved & scored" }));
+    const moved = await applyScoringWithRankBaseline(() => saveThirdResults(supabase, thirdGroups));
+    setMsg((m) => ({
+      ...m,
+      third: moved > 0 ? `✅ Saved & scored · ${moved} players moved in rankings` : "✅ Saved & scored",
+    }));
     setTimeout(() => setMsg((m) => ({ ...m, third: "" })), 3000);
     setSaving(false);
   };
@@ -95,15 +106,18 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setSaving(true);
     setMsg((m) => ({ ...m, knockout: "" }));
     try {
-      const ranksBefore = await computeParticipantRankMap(supabase);
-      for (const matchNum of toSave) {
-        await saveKnockoutResult(supabase, matchNum, knockoutDraft[matchNum]);
-      }
-      setKnockoutSaved({ ...knockoutDraft });
-      await persistPrevRanks(supabase, ranksBefore);
+      const moved = await applyScoringWithRankBaseline(async () => {
+        for (const matchNum of toSave) {
+          await saveKnockoutResult(supabase, matchNum, knockoutDraft[matchNum]);
+        }
+        setKnockoutSaved({ ...knockoutDraft });
+      });
       setMsg((m) => ({
         ...m,
-        knockout: `✅ Saved ${toSave.length} match result${toSave.length === 1 ? "" : "s"} · points & rankings updated`,
+        knockout:
+          moved > 0
+            ? `✅ Saved ${toSave.length} match result${toSave.length === 1 ? "" : "s"} · ${moved} players moved in rankings`
+            : `✅ Saved ${toSave.length} match result${toSave.length === 1 ? "" : "s"} · rankings updated`,
       }));
       setTimeout(() => setMsg((m) => ({ ...m, knockout: "" })), 5000);
     } catch {

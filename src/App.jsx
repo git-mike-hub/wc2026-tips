@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase, hashPIN, FLAGS } from "./constants.js";
 import { styles } from "./styles.js";
-import { loadResults, getParticipantPoints } from "./lib/api.js";
+import { buildLeaderboardRows } from "./lib/api.js";
 import { TipsView } from "./views/TipsView.jsx";
 import { AdminView } from "./views/AdminView.jsx";
 import { AppNav } from "./components/AppNav.jsx";
@@ -310,30 +310,8 @@ function LeaderboardView({ user }) {
 
   const loadLeaderboard = async () => {
     setLoading(true);
-    const { data: parts } = await supabase.from("participants").select("id,name,is_admin");
-    if (!parts) { setLoading(false); return; }
-    const results = await loadResults(supabase);
-    const scores = await Promise.all(
-      parts.map(async (p) => {
-        const { total } = await getParticipantPoints(supabase, p.id, results);
-        return { ...p, total };
-      })
-    );
-    scores.sort((a, b) => b.total - a.total);
-    const { data: prevData } = await supabase.from("settings").select("value").eq("key", "prev_ranks").maybeSingle();
-    let prevRanks = {};
-    try { prevRanks = JSON.parse(prevData?.value || "{}"); } catch { /* ignore */ }
-    const hasSnapshot = Object.keys(prevRanks).length > 0;
-    setParticipants(
-      scores.map((p, i) => ({
-        ...p,
-        change: !hasSnapshot
-          ? null
-          : prevRanks[p.id] == null
-            ? null
-            : prevRanks[p.id] - (i + 1),
-      }))
-    );
+    const rows = await buildLeaderboardRows(supabase);
+    setParticipants(rows);
     setLoading(false);
   };
 
@@ -347,10 +325,15 @@ function LeaderboardView({ user }) {
         <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: "var(--green)" }}>🏆 Rankings</h2>
         <button type="button" className="btn-sm btn-green" onClick={loadLeaderboard}>↻ Refresh</button>
       </div>
-      {participants.some((p) => p.change !== null) && (
+      {participants.some((p) => p.change !== null && p.change !== 0) && (
         <p className="section-intro" style={{ margin: "0 0 12px" }}>
           <span className="rank-change rank-up">▲</span> moved up ·{" "}
-          <span className="rank-change rank-down">▼</span> moved down since last scoring update
+          <span className="rank-change rank-down">▼</span> moved down since last Admin scoring save
+        </p>
+      )}
+      {participants.length > 0 && participants[0].hasBaseline && !participants.some((p) => p.change !== null && p.change !== 0) && (
+        <p className="section-intro" style={{ margin: "0 0 12px" }}>
+          Arrows appear after the next Admin save that changes points or standings.
         </p>
       )}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -366,7 +349,7 @@ function LeaderboardView({ user }) {
           <tbody>
             {participants.map((p, i) => (
               <tr key={p.id}>
-                <td style={{ paddingLeft: 16 }}><span className={`rank-badge rank-${i < 3 ? i + 1 : "other"}`}>{i + 1}</span></td>
+                <td style={{ paddingLeft: 16 }}><span className={`rank-badge rank-${p.rank <= 3 ? p.rank : "other"}`}>{p.rank}</span></td>
                 <td><strong>{p.name}</strong>{user?.id === p.id && <span className="you-badge">YOU</span>}</td>
                 <td>
                   {p.change === null ? (

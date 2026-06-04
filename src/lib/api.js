@@ -86,17 +86,27 @@ export async function getParticipantPoints(supabase, participantId, results) {
   return calculateTotalPoints(tips.groupRanks, tips.thirdGroups, tips.knockout, res);
 }
 
+const PREV_RANKS_KEY = "prev_ranks";
+
+function normalizeRankMap(rankMap) {
+  const out = {};
+  for (const [id, rank] of Object.entries(rankMap || {})) {
+    out[String(id)] = Number(rank);
+  }
+  return out;
+}
+
 /** Current leaderboard position by participant id (1 = first). */
 export async function computeParticipantRankMap(supabase) {
   const { data: parts } = await supabase.from("participants").select("id");
   const res = await loadResults(supabase);
   const scores = await Promise.all(
     (parts || []).map(async (p) => ({
-      id: p.id,
+      id: String(p.id),
       total: (await getParticipantPoints(supabase, p.id, res)).total,
     }))
   );
-  scores.sort((a, b) => b.total - a.total || String(a.id).localeCompare(String(b.id)));
+  scores.sort((a, b) => b.total - a.total || a.id.localeCompare(b.id));
   const rankMap = {};
   scores.forEach((p, i) => {
     rankMap[p.id] = i + 1;
@@ -104,12 +114,61 @@ export async function computeParticipantRankMap(supabase) {
   return rankMap;
 }
 
+export async function loadPrevRanks(supabase) {
+  const { data } = await supabase.from("settings").select("value").eq("key", PREV_RANKS_KEY).maybeSingle();
+  if (!data?.value) return {};
+  try {
+    return normalizeRankMap(JSON.parse(data.value));
+  } catch {
+    return {};
+  }
+}
+
 /** Store ranks from before the latest scoring update (for leaderboard arrows). */
 export async function persistPrevRanks(supabase, rankMap) {
-  await supabase.from("settings").upsert(
-    { key: "prev_ranks", value: JSON.stringify(rankMap) },
-    { onConflict: "key" }
+  await assertNoError(
+    await supabase.from("settings").upsert(
+      { key: PREV_RANKS_KEY, value: JSON.stringify(normalizeRankMap(rankMap)) },
+      { onConflict: "key" }
+    ),
+    "Could not save rank baseline"
   );
+}
+
+export function countRankMovements(beforeMap, afterMap) {
+  const ids = new Set([...Object.keys(beforeMap), ...Object.keys(afterMap)]);
+  let moved = 0;
+  for (const id of ids) {
+    if (beforeMap[id] !== afterMap[id]) moved += 1;
+  }
+  return moved;
+}
+
+/** Leaderboard rows with rank, points, and change vs stored baseline. */
+export async function buildLeaderboardRows(supabase) {
+  const { data: parts } = await supabase.from("participants").select("id,name,is_admin").order("name");
+  const res = await loadResults(supabase);
+  const prevRanks = await loadPrevRanks(supabase);
+  const hasBaseline = Object.keys(prevRanks).length > 0;
+
+  const rows = await Promise.all(
+    (parts || []).map(async (p) => ({
+      id: String(p.id),
+      name: p.name,
+      is_admin: p.is_admin,
+      total: (await getParticipantPoints(supabase, p.id, res)).total,
+    }))
+  );
+  rows.sort((a, b) => b.total - a.total || a.id.localeCompare(b.id));
+
+  return rows.map((p, i) => {
+    const rank = i + 1;
+    let change = null;
+    if (hasBaseline && prevRanks[p.id] != null) {
+      change = prevRanks[p.id] - rank;
+    }
+    return { ...p, rank, change, hasBaseline };
+  });
 }
 
 export async function saveParticipantTips(supabase, participantId, { groupRanks, thirdGroups, knockout }) {
