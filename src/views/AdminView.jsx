@@ -18,7 +18,6 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   const [thirdGroups, setThirdGroups] = useState([]);
   const [knockoutDraft, setKnockoutDraft] = useState({});
   const [knockoutSaved, setKnockoutSaved] = useState({});
-  const [savingMatchNum, setSavingMatchNum] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [bracketReady, setBracketReady] = useState({});
   const [newPin, setNewPin] = useState({});
@@ -93,29 +92,32 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setMsg((m) => ({ ...m, knockout: "" }));
   };
 
-  const saveKoMatch = async (matchNum) => {
-    const team = knockoutDraft[matchNum];
-    if (!team) return;
-    setSavingMatchNum(matchNum);
+  const koDirtyCount = Object.keys(knockoutDraft).filter(
+    (num) => knockoutDraft[num] && knockoutDraft[num] !== knockoutSaved[num]
+  ).length;
+
+  const saveKoBatch = async () => {
+    const toSave = Object.keys(knockoutDraft)
+      .map(Number)
+      .filter((num) => knockoutDraft[num] && knockoutDraft[num] !== knockoutSaved[num]);
+    if (!toSave.length) return;
+    setSaving(true);
     setMsg((m) => ({ ...m, knockout: "" }));
     try {
-      await saveKnockoutResult(supabase, matchNum, team);
-      let totalSaved = 0;
-      setKnockoutSaved((s) => {
-        const next = { ...s, [matchNum]: team };
-        totalSaved = Object.keys(next).length;
-        return next;
-      });
+      for (const matchNum of toSave) {
+        await saveKnockoutResult(supabase, matchNum, knockoutDraft[matchNum]);
+      }
+      setKnockoutSaved({ ...knockoutDraft });
       await saveRankSnapshot();
       setMsg((m) => ({
         ...m,
-        knockout: `✅ M${matchNum} saved — ${totalSaved} result${totalSaved === 1 ? "" : "s"} total · points & rankings updated`,
+        knockout: `✅ Saved ${toSave.length} match result${toSave.length === 1 ? "" : "s"} · points & rankings updated`,
       }));
       setTimeout(() => setMsg((m) => ({ ...m, knockout: "" })), 5000);
     } catch {
-      setMsg((m) => ({ ...m, knockout: "❌ Could not save match result" }));
+      setMsg((m) => ({ ...m, knockout: "❌ Could not save knockout results" }));
     }
-    setSavingMatchNum(null);
+    setSaving(false);
   };
 
   const resetCompetition = async () => {
@@ -265,11 +267,10 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
       )}
 
       {tab === "knockout" && (
-        <>
+        <div style={{ paddingBottom: koDirtyCount > 0 ? 80 : 0 }}>
           <p className="section-intro">
-            Select a winner for each match, then tap <strong>Save result</strong> on that match (one at a time is fine).
-            Changing a saved result and tapping <strong>Update &amp; rescore</strong> overwrites the old result and
-            recalculates everyone&apos;s points and rankings.
+            Select as many match winners as you like, then tap <strong>Save knockout results</strong> when ready.
+            Changed picks overwrite previous results and recalculate points and rankings.
           </p>
           {msg.knockout && (
             <div className={`alert ${msg.knockout.startsWith("✅") ? "alert-success" : "alert-error"}`} style={{ margin: "0 0 12px" }}>
@@ -277,8 +278,8 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
             </div>
           )}
           <p className="count-badge" style={{ marginBottom: 12 }}>
-            {Object.keys(knockoutSaved).length} match result{Object.keys(knockoutSaved).length === 1 ? "" : "s"} saved
-            {savingMatchNum ? ` · saving M${savingMatchNum}…` : ""}
+            {Object.keys(knockoutSaved).length} saved
+            {koDirtyCount > 0 ? ` · ${koDirtyCount} unsaved change${koDirtyCount === 1 ? "" : "s"}` : ""}
           </p>
           <KnockoutPicker
             groupRanks={groupRanks}
@@ -286,12 +287,25 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
             winners={knockoutDraft}
             savedWinners={knockoutSaved}
             onPick={pickKoLocal}
-            onSaveMatch={saveKoMatch}
-            savingMatchNum={savingMatchNum}
             locked={false}
             adminResultsMode
           />
-        </>
+          {koDirtyCount > 0 && (
+            <div className="save-bar">
+              <div className="save-bar-inner">
+                <span className="text-muted">{koDirtyCount} unsaved match{koDirtyCount === 1 ? "" : "es"}</span>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={saveKoBatch}
+                  disabled={saving}
+                >
+                  {saving ? "Saving…" : "Save knockout results"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {tab === "participants" && (

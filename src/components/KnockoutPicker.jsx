@@ -56,10 +56,8 @@ export function KnockoutPicker({
   showScore,
   adminResultsMode,
   savedWinners,
-  onSaveMatch,
-  savingMatchNum,
 }) {
-  const cascadeWinners = adminResultsMode ? (savedWinners ?? {}) : winners;
+  const cascadeWinners = adminResultsMode ? { ...(savedWinners ?? {}), ...winners } : winners;
   const fixtures = getLiveFixtures(groupRanks, thirdGroups, cascadeWinners);
   const scrollRef = useRef(null);
   const colRefs = useRef({});
@@ -245,20 +243,6 @@ export function KnockoutPicker({
                                 );
                               })}
                             </div>
-                          )}
-                          {adminResultsMode && ready && pick && isDirty && onSaveMatch && (
-                            <button
-                              type="button"
-                              className="bracket-match-save btn-sm btn-green"
-                              disabled={savingMatchNum === f.matchNum}
-                              onClick={() => onSaveMatch(f.matchNum)}
-                            >
-                              {savingMatchNum === f.matchNum
-                                ? "Saving…"
-                                : savedPick
-                                  ? "Update & rescore"
-                                  : "Save result"}
-                            </button>
                           )}
                         </div>
                       </div>

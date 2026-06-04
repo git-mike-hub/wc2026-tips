@@ -175,7 +175,6 @@ export const styles = `
   .bracket-match-id{font-family:'Bebas Neue',sans-serif;font-size:15px;background:var(--navy);color:#fff;padding:3px 8px;border-radius:5px;letter-spacing:0.04em;}
   .bracket-saved-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(46,125,50,0.15);color:#2e7d32;border:1px solid rgba(46,125,50,0.35);}
   .bracket-unsaved-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(255,193,7,0.15);color:#f9a825;border:1px solid rgba(255,193,7,0.4);}
-  .bracket-match-save{width:100%;margin-top:10px;}
   .bracket-match-meta{font-size:11px;color:var(--bracket-muted);font-weight:500;}
   .bracket-teams{display:flex;flex-direction:column;gap:8px;}
   .bracket-team-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border-radius:999px;border:1px solid #d0d8e4;background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;transition:border-color 0.12s,background 0.12s;}
