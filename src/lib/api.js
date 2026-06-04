@@ -62,12 +62,16 @@ export async function saveParticipantTips(supabase, participantId, { groupRanks,
       if (team) groupRows.push({ participant_id: participantId, group_name: g, team_name: team, position: i + 1 });
     });
   }
-  if (groupRows.length) await supabase.from("group_rank_tips").insert(groupRows);
+  if (groupRows.length) {
+    const { error } = await supabase.from("group_rank_tips").insert(groupRows);
+    if (error) throw error;
+  }
 
   if (thirdGroups?.length) {
-    await supabase.from("third_place_tips").insert(
+    const { error } = await supabase.from("third_place_tips").insert(
       thirdGroups.map((group_name) => ({ participant_id: participantId, group_name }))
     );
+    if (error) throw error;
   }
 
   const koRows = Object.entries(knockout || {})
@@ -77,7 +81,10 @@ export async function saveParticipantTips(supabase, participantId, { groupRanks,
       match_num: parseInt(match_num, 10),
       winner_team,
     }));
-  if (koRows.length) await supabase.from("knockout_tips").insert(koRows);
+  if (koRows.length) {
+    const { error } = await supabase.from("knockout_tips").insert(koRows);
+    if (error) throw error;
+  }
 }
 
 export async function saveGroupResults(supabase, groupRanks) {

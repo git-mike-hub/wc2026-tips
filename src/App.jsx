@@ -4,23 +4,17 @@ import { styles } from "./styles.js";
 import { loadResults, getParticipantPoints } from "./lib/api.js";
 import { TipsView } from "./views/TipsView.jsx";
 import { AdminView } from "./views/AdminView.jsx";
+import { AppNav } from "./components/AppNav.jsx";
+import { loadParticipantTips } from "./lib/api.js";
+import { hasStartedBracketTips, isBracketTipsComplete } from "./lib/bracket.js";
 
-const BRAND_LOGO = "/eshkol-logo.png";
-const WORLD_CUP_TROPHY = "/world-cup-trophy.png";
+const LOGO_WITH_NAME = "/eshkol-logo-with-name.png";
 const APP_TITLE = "World Cup 2026 Competition";
-
-function NavBrand() {
-  return (
-    <div className="nav-brand">
-      <img src={WORLD_CUP_TROPHY} alt="World Cup 2026" className="nav-trophy-icon" />
-    </div>
-  );
-}
 
 function HeroBrand() {
   return (
     <>
-      <img src={BRAND_LOGO} alt="Eshkol" className="brand-logo brand-logo-hero" />
+      <img src={LOGO_WITH_NAME} alt="Eshkol" className="brand-logo brand-logo-hero" />
       <h2 className="hero-subtitle">{APP_TITLE}</h2>
     </>
   );
@@ -40,10 +34,6 @@ export default function App() {
   };
 
   const goToRules = () => {
-    if (user) {
-      setView("rules");
-      return;
-    }
     setView("home");
     window.setTimeout(() => {
       document.getElementById("rules")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -82,31 +72,19 @@ export default function App() {
   return (
     <>
       <style>{styles}</style>
-      <nav className="nav">
-        <div className="nav-inner">
-          <NavBrand />
-          <div className="nav-tabs">
-            <button type="button" className={`nav-tab${view === "home" ? " active" : ""}`} onClick={() => setView("home")}>Home</button>
-            <button type="button" className={`nav-tab${view === "rules" ? " active" : ""}`} onClick={goToRules}>Rules</button>
-            <button type="button" className={`nav-tab${view === "leaderboard" ? " active" : ""}`} onClick={() => setView("leaderboard")}>Ranks</button>
-            {user && <button type="button" className={`nav-tab${view === "tips" ? " active" : ""}`} onClick={() => setView("tips")}>My Bracket</button>}
-            {user?.is_admin && <button type="button" className={`nav-tab${view === "admin" ? " active" : ""}`} onClick={() => setView("admin")}>Admin</button>}
-          </div>
-          <div className="nav-user">
-            {user ? (
-              <>
-                <span className="nav-user-name">👋 {user.name}</span>
-                <button type="button" className="btn-logout" onClick={logout}>Logout</button>
-              </>
-            ) : (
-              <button type="button" className="btn-logout" style={{ color: "var(--green2)", borderColor: "var(--green-dim)" }} onClick={scrollToSignIn}>Sign In</button>
-            )}
-          </div>
-        </div>
-      </nav>
+      <AppNav
+        view={view}
+        user={user}
+        onHome={() => setView("home")}
+        onRules={goToRules}
+        onLeaderboard={() => setView("leaderboard")}
+        onTips={() => setView("tips")}
+        onAdmin={() => setView("admin")}
+        onSignIn={scrollToSignIn}
+        onLogout={logout}
+      />
       <div className="app">
         {view === "home" && <HomeView user={user} onLogin={login} tipsLocked={tipsLocked} setView={setView} />}
-        {view === "rules" && user && <RulesView />}
         {view === "leaderboard" && <LeaderboardView user={user} />}
         {view === "tips" && user && <TipsView user={user} tipsLocked={tipsLocked} />}
         {view === "admin" && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked} />}
@@ -147,6 +125,19 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bracketIncomplete, setBracketIncomplete] = useState(false);
+
+  useEffect(() => {
+    if (!user || tipsLocked) {
+      setBracketIncomplete(false);
+      return;
+    }
+    loadParticipantTips(supabase, user.id).then((tips) => {
+      const started = hasStartedBracketTips(tips.groupRanks, tips.thirdGroups, tips.knockout);
+      const complete = isBracketTipsComplete(tips.groupRanks, tips.thirdGroups, tips.knockout);
+      setBracketIncomplete(started && !complete);
+    });
+  }, [user?.id, tipsLocked]);
 
   const handleRegister = async () => {
     if (!name.trim()) return setError("Please enter your name.");
@@ -182,6 +173,14 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
         <div className="hero">
           <HeroBrand />
           <div className="hero-deadline">{tipsLocked ? <>🔒 Tips <strong>locked</strong></> : <>🟢 Tips <strong>open</strong></>}</div>
+          {bracketIncomplete && (
+            <div className="hero-bracket-warning">
+              ⚠️ You still need to finish filling out your bracket.{" "}
+              <button type="button" className="hero-bracket-warning-link" onClick={() => setView("tips")}>
+                Continue your picks →
+              </button>
+            </div>
+          )}
         </div>
         <div className="card">
           <div className="card-title">👋 Welcome, {user.name}!</div>
@@ -190,6 +189,7 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
             <button type="button" className="btn btn-secondary" style={{ maxWidth: 160 }} onClick={() => setView("leaderboard")}>Ranks</button>
           </div>
         </div>
+        <HomeRulesBrief />
       </div>
     );
   }
@@ -236,15 +236,6 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
           </div>
         </div>
       </div>
-      <HomeRulesBrief />
-    </div>
-  );
-}
-
-function RulesView() {
-  return (
-    <div className="rules-page">
-      <h2 className="rules-page-title">📋 Rules</h2>
       <HomeRulesBrief />
     </div>
   );

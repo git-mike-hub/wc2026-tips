@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { FLAGS, supabase } from "../constants.js";
-import { isGroupRankingComplete, getThirdPlaceTeamsFromGroups } from "../lib/bracket.js";
+import {
+  isGroupRankingComplete,
+  getThirdPlaceTeamsFromGroups,
+  isBracketTipsComplete,
+} from "../lib/bracket.js";
 import { loadParticipantTips, saveParticipantTips, loadResults } from "../lib/api.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
 import { KnockoutPicker } from "../components/KnockoutPicker.jsx";
@@ -49,10 +53,15 @@ export function TipsView({ user, tipsLocked }) {
   const saveAll = async () => {
     setSaving(true);
     setSaveMsg("");
+    const wasThirdTab = tab === "third";
     try {
       await saveParticipantTips(supabase, user.id, { groupRanks, thirdGroups, knockout });
       setDirty(false);
-      setSaveMsg("✅ Bracket saved!");
+      const complete = isBracketTipsComplete(groupRanks, thirdGroups, knockout);
+      setSaveMsg(complete ? "✅ Bracket saved!" : "✅ Progress saved — come back anytime to finish.");
+      if (wasThirdTab && thirdDone) {
+        setTab("knockout");
+      }
     } catch {
       setSaveMsg("❌ Error saving. Try again.");
     }

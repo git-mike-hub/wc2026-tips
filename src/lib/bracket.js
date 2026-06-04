@@ -123,6 +123,37 @@ export function isGroupRankingComplete(ranks) {
   return GROUP_KEYS.every((g) => ranks[g]?.filter(Boolean).length === 4);
 }
 
+export function getAllKnockoutMatchNums() {
+  return [
+    ...MATCHES.r32.map((m) => m.num),
+    ...MATCHES.r16.map((m) => m.num),
+    ...MATCHES.quarters.map((m) => m.num),
+    ...MATCHES.semis.map((m) => m.num),
+    MATCHES.third.num,
+    MATCHES.final.num,
+  ];
+}
+
+export function isKnockoutTipsComplete(knockout) {
+  const w = knockout || {};
+  return getAllKnockoutMatchNums().every((num) => w[num]);
+}
+
+export function isBracketTipsComplete(groupRanks, thirdGroups, knockout) {
+  return (
+    isGroupRankingComplete(groupRanks) &&
+    (thirdGroups || []).length === 8 &&
+    isKnockoutTipsComplete(knockout)
+  );
+}
+
+export function hasStartedBracketTips(groupRanks, thirdGroups, knockout) {
+  if (GROUP_KEYS.some((g) => (groupRanks[g] || []).some(Boolean))) return true;
+  if ((thirdGroups || []).length > 0) return true;
+  if (Object.keys(knockout || {}).length > 0) return true;
+  return false;
+}
+
 export function completeGroupRanking(partial, group) {
   const teams = [...GROUPS[group]];
   const picked = partial[group] || [];
