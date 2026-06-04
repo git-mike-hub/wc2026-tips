@@ -16,7 +16,9 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   const [tab, setTab] = useState("groups");
   const [groupRanks, setGroupRanks] = useState({});
   const [thirdGroups, setThirdGroups] = useState([]);
-  const [knockout, setKnockout] = useState({});
+  const [knockoutDraft, setKnockoutDraft] = useState({});
+  const [knockoutSaved, setKnockoutSaved] = useState({});
+  const [savingMatchNum, setSavingMatchNum] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [bracketReady, setBracketReady] = useState({});
   const [newPin, setNewPin] = useState({});
@@ -40,7 +42,9 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setBracketReady(ready);
     setGroupRanks(res.groups || {});
     setThirdGroups(res.thirdGroups || []);
-    setKnockout(res.knockout || {});
+    const ko = res.knockout || {};
+    setKnockoutDraft({ ...ko });
+    setKnockoutSaved({ ...ko });
     setLoading(false);
   };
 
@@ -84,25 +88,34 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setSaving(false);
   };
 
-  const pickKo = async (matchNum, team) => {
-    const next = { ...knockout, [matchNum]: team };
-    setKnockout(next);
-    setSaving(true);
+  const pickKoLocal = (matchNum, team) => {
+    setKnockoutDraft((k) => ({ ...k, [matchNum]: team }));
+    setMsg((m) => ({ ...m, knockout: "" }));
+  };
+
+  const saveKoMatch = async (matchNum) => {
+    const team = knockoutDraft[matchNum];
+    if (!team) return;
+    setSavingMatchNum(matchNum);
     setMsg((m) => ({ ...m, knockout: "" }));
     try {
       await saveKnockoutResult(supabase, matchNum, team);
+      let totalSaved = 0;
+      setKnockoutSaved((s) => {
+        const next = { ...s, [matchNum]: team };
+        totalSaved = Object.keys(next).length;
+        return next;
+      });
       await saveRankSnapshot();
-      const n = Object.keys(next).length;
       setMsg((m) => ({
         ...m,
-        knockout: `✅ M${matchNum} saved — ${n} match result${n === 1 ? "" : "s"} in · rankings updated`,
+        knockout: `✅ M${matchNum} saved — ${totalSaved} result${totalSaved === 1 ? "" : "s"} total · points & rankings updated`,
       }));
       setTimeout(() => setMsg((m) => ({ ...m, knockout: "" })), 5000);
     } catch {
       setMsg((m) => ({ ...m, knockout: "❌ Could not save match result" }));
-      setKnockout(knockout);
     }
-    setSaving(false);
+    setSavingMatchNum(null);
   };
 
   const resetCompetition = async () => {
@@ -254,8 +267,9 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
       {tab === "knockout" && (
         <>
           <p className="section-intro">
-            Enter match winners as games finish — each pick saves immediately and updates everyone&apos;s points and
-            rankings. You do not need to fill the whole bracket at once.
+            Select a winner for each match, then tap <strong>Save result</strong> on that match (one at a time is fine).
+            Changing a saved result and tapping <strong>Update &amp; rescore</strong> overwrites the old result and
+            recalculates everyone&apos;s points and rankings.
           </p>
           {msg.knockout && (
             <div className={`alert ${msg.knockout.startsWith("✅") ? "alert-success" : "alert-error"}`} style={{ margin: "0 0 12px" }}>
@@ -263,14 +277,17 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
             </div>
           )}
           <p className="count-badge" style={{ marginBottom: 12 }}>
-            {Object.keys(knockout).length} match result{Object.keys(knockout).length === 1 ? "" : "s"} saved
-            {saving ? " · saving…" : ""}
+            {Object.keys(knockoutSaved).length} match result{Object.keys(knockoutSaved).length === 1 ? "" : "s"} saved
+            {savingMatchNum ? ` · saving M${savingMatchNum}…` : ""}
           </p>
           <KnockoutPicker
             groupRanks={groupRanks}
             thirdGroups={thirdGroups}
-            winners={knockout}
-            onPick={pickKo}
+            winners={knockoutDraft}
+            savedWinners={knockoutSaved}
+            onPick={pickKoLocal}
+            onSaveMatch={saveKoMatch}
+            savingMatchNum={savingMatchNum}
             locked={false}
             adminResultsMode
           />

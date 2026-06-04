@@ -55,8 +55,12 @@ export function KnockoutPicker({
   actualWinners,
   showScore,
   adminResultsMode,
+  savedWinners,
+  onSaveMatch,
+  savingMatchNum,
 }) {
-  const fixtures = getLiveFixtures(groupRanks, thirdGroups, winners);
+  const cascadeWinners = adminResultsMode ? (savedWinners ?? {}) : winners;
+  const fixtures = getLiveFixtures(groupRanks, thirdGroups, cascadeWinners);
   const scrollRef = useRef(null);
   const colRefs = useRef({});
   const prevCompleteRef = useRef({});
@@ -85,7 +89,7 @@ export function KnockoutPicker({
   };
 
   useEffect(() => {
-    const live = getLiveFixtures(groupRanks, thirdGroups, winners);
+    const live = getLiveFixtures(groupRanks, thirdGroups, cascadeWinners);
     const keys = BRACKET_ROUND_ORDER.map((r) => r.key);
     for (let i = 0; i < keys.length - 1; i++) {
       const r = keys[i];
@@ -100,7 +104,7 @@ export function KnockoutPicker({
         break;
       }
     }
-  }, [winners, groupRanks, thirdGroups]);
+  }, [winners, groupRanks, thirdGroups, cascadeWinners]);
 
   const columnReachRound = (fixtureRound) => FIXTURE_ROUND_TO_REACHING[fixtureRound];
 
@@ -139,7 +143,10 @@ export function KnockoutPicker({
                 <div className="bracket-column-matches">
                   {roundFixtures.map((f) => {
                     const pick = winners[f.matchNum];
+                    const savedPick = savedWinners?.[f.matchNum];
                     const ready = f.teamA && f.teamB;
+                    const isDirty = !!(pick && pick !== savedPick);
+                    const isSaved = !!(savedPick && !isDirty);
                     const sideA = sideInfo(f, "A");
                     const sideB = sideInfo(f, "B");
 
@@ -154,8 +161,11 @@ export function KnockoutPicker({
                         <div className="bracket-match-card">
                           <div className="bracket-match-head">
                             <span className="bracket-match-id">M{f.matchNum}</span>
-                            {adminResultsMode && winners[f.matchNum] && (
+                            {adminResultsMode && isSaved && (
                               <span className="bracket-saved-badge">Saved</span>
+                            )}
+                            {adminResultsMode && isDirty && (
+                              <span className="bracket-unsaved-badge">Unsaved</span>
                             )}
                             {f.date && (
                               <span className="bracket-match-meta">
@@ -235,6 +245,20 @@ export function KnockoutPicker({
                                 );
                               })}
                             </div>
+                          )}
+                          {adminResultsMode && ready && pick && isDirty && onSaveMatch && (
+                            <button
+                              type="button"
+                              className="bracket-match-save btn-sm btn-green"
+                              disabled={savingMatchNum === f.matchNum}
+                              onClick={() => onSaveMatch(f.matchNum)}
+                            >
+                              {savingMatchNum === f.matchNum
+                                ? "Saving…"
+                                : savedPick
+                                  ? "Update & rescore"
+                                  : "Save result"}
+                            </button>
                           )}
                         </div>
                       </div>

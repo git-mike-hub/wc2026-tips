@@ -146,7 +146,12 @@ export async function saveThirdResults(supabase, groups) {
 }
 
 export async function saveKnockoutResult(supabase, matchNum, winner) {
-  await supabase.from("knockout_results").upsert({ match_num: matchNum, winner_team: winner }, { onConflict: "match_num" });
+  await assertNoError(
+    await supabase
+      .from("knockout_results")
+      .upsert({ match_num: matchNum, winner_team: winner }, { onConflict: "match_num" }),
+    "Could not save knockout result"
+  );
 }
 
 /** Map participant id → true when group, third, and knockout tips are all complete. */
