@@ -310,7 +310,7 @@ function LeaderboardView({ user, tipsLocked }) {
 
   const loadLeaderboard = async () => {
     setLoading(true);
-    const rows = await buildLeaderboardRows(supabase, { includeTop3: tipsLocked });
+    const rows = await buildLeaderboardRows(supabase, { includeChampionPick: tipsLocked });
     setParticipants(rows);
     setLoading(false);
   };
@@ -355,7 +355,7 @@ function LeaderboardView({ user, tipsLocked }) {
             <tr>
               <th style={{ paddingLeft: 16 }}>#</th>
               <th>Player</th>
-              {tipsLocked && <th>Top 3 Picks</th>}
+              {tipsLocked && <th>WC Tip</th>}
               <th>Change</th>
               <th style={{ textAlign: "right", paddingRight: 16 }}>Points</th>
             </tr>
@@ -367,35 +367,25 @@ function LeaderboardView({ user, tipsLocked }) {
                 <td><strong>{p.name}</strong>{user?.id === p.id && <span className="you-badge">YOU</span>}</td>
                 {tipsLocked && (
                   <td>
-                    <span className="top3-picks" aria-label="Top 3 picks: semi-finals and champion">
-                      {(p.top3 || [null, null, null]).map((team, idx) => (
-                        <span
-                          key={idx}
-                          className="top3-flag"
-                          title={team || "No pick"}
-                          aria-label={team || "No pick"}
-                        >
-                          {team ? FLAGS[team] || "🏳" : "—"}
-                        </span>
-                      ))}
+                    <span
+                      className="champion-pick-flag"
+                      title={p.championPick || "No WC tip"}
+                      aria-label={p.championPick ? `WC tip: ${p.championPick}` : "No WC tip"}
+                    >
+                      {p.championPick ? FLAGS[p.championPick] || "🏳" : "—"}
                     </span>
                   </td>
                 )}
                 <td>
-                  <span className="rank-change-cell">
-                    {p.change === null ? (
-                      <span className="rank-change rank-same">—</span>
-                    ) : p.change > 0 ? (
-                      <span className="rank-change rank-up" title="Moved up">▲ {p.change}</span>
-                    ) : p.change < 0 ? (
-                      <span className="rank-change rank-down" title="Moved down">▼ {Math.abs(p.change)}</span>
-                    ) : (
-                      <span className="rank-change rank-same" title="No change">—</span>
-                    )}
-                    {p.prevRank != null && p.change !== null && p.change !== 0 && (
-                      <span className="rank-was">was #{p.prevRank}</span>
-                    )}
-                  </span>
+                  {p.change === null ? (
+                    <span className="rank-change rank-same">—</span>
+                  ) : p.change > 0 ? (
+                    <span className="rank-change rank-up" title="Moved up">▲ {p.change}</span>
+                  ) : p.change < 0 ? (
+                    <span className="rank-change rank-down" title="Moved down">▼ {Math.abs(p.change)}</span>
+                  ) : (
+                    <span className="rank-change rank-same" title="No change">—</span>
+                  )}
                 </td>
                 <td style={{ textAlign: "right", paddingRight: 16 }}><span className="pts">{p.total}</span></td>
               </tr>

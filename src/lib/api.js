@@ -1,6 +1,6 @@
 import { GROUP_KEYS } from "../data/groups.js";
 import { MATCHES } from "../data/matches.js";
-import { getTop3BracketPicks, isBracketTipsComplete, normalizeGroupSlots } from "./bracket.js";
+import { isBracketTipsComplete, normalizeGroupSlots } from "./bracket.js";
 import { calculateTotalPoints } from "./scoring.js";
 
 export function rowsToGroupRanks(rows) {
@@ -167,26 +167,22 @@ export function countRankMovements(beforeMap, afterMap) {
   return moved;
 }
 
-const TOP3_MATCH_NUMS = [...MATCHES.semis.map((m) => m.num), MATCHES.final.num];
-
 /** Leaderboard rows with rank, points, and change vs stored baseline. */
-export async function buildLeaderboardRows(supabase, { includeTop3 = false } = {}) {
+export async function buildLeaderboardRows(supabase, { includeChampionPick = false } = {}) {
   const { data: parts } = await supabase.from("participants").select("id,name,is_admin").order("name");
   const res = await loadResults(supabase);
   const baseline = await loadRankBaseline(supabase);
   const hasBaseline = Object.keys(baseline).length > 0;
 
-  let knockoutByParticipant = null;
-  if (includeTop3) {
+  let championByParticipant = null;
+  if (includeChampionPick) {
     const { data: koRows } = await supabase
       .from("knockout_tips")
-      .select("participant_id, match_num, winner_team")
-      .in("match_num", TOP3_MATCH_NUMS);
-    knockoutByParticipant = {};
+      .select("participant_id, winner_team")
+      .eq("match_num", MATCHES.final.num);
+    championByParticipant = {};
     for (const r of koRows || []) {
-      const id = String(r.participant_id);
-      if (!knockoutByParticipant[id]) knockoutByParticipant[id] = {};
-      knockoutByParticipant[id][r.match_num] = r.winner_team;
+      championByParticipant[String(r.participant_id)] = r.winner_team;
     }
   }
 
@@ -207,10 +203,8 @@ export async function buildLeaderboardRows(supabase, { includeTop3 = false } = {
     if (hasBaseline && prevRank != null) {
       change = prevRank - rank;
     }
-    const top3 = includeTop3
-      ? getTop3BracketPicks(knockoutByParticipant?.[p.id])
-      : null;
-    return { ...p, rank, prevRank: prevRank ?? null, change, hasBaseline, top3 };
+    const championPick = includeChampionPick ? championByParticipant?.[p.id] || null : null;
+    return { ...p, rank, prevRank: prevRank ?? null, change, hasBaseline, championPick };
   });
 }
 

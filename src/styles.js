@@ -95,8 +95,7 @@ export const styles = `
   .alert-error{background:rgba(255,107,107,0.15);border:1px solid rgba(255,107,107,0.35);color:var(--red);}
   .alert-success{background:rgba(245,197,24,0.12);border:1px solid rgba(245,197,24,0.35);color:var(--gold);}
   .alert-warn{background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:var(--gold);}
-  .top3-picks{display:inline-flex;align-items:center;gap:6px;}
-  .top3-flag{font-size:1.35em;line-height:1;}
+  .champion-pick-flag{font-size:1.35em;line-height:1;}
   .leaderboard-table{width:100%;border-collapse:collapse;}
   .leaderboard-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);}
   .leaderboard-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.08);}
@@ -107,12 +106,10 @@ export const styles = `
   .rank-other{background:rgba(255,255,255,0.1);color:var(--text2);}
   .pts{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);}
   .you-badge{font-size:10px;background:rgba(245,197,24,0.2);color:var(--gold);padding:2px 7px;border-radius:10px;font-weight:700;margin-left:6px;}
-  .rank-change-cell{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .rank-change{font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:2px;}
   .rank-up{color:#81c784;}
   .rank-down{color:#ef5350;}
   .rank-same{color:var(--text3);}
-  .rank-was{font-size:11px;color:var(--text3);font-weight:500;}
   .group-header{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text2);letter-spacing:0.1em;padding:12px 0 8px;display:flex;align-items:center;gap:12px;}
   .group-header::after{content:'';flex:1;height:1px;background:var(--border);}
   .group-board{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);}
