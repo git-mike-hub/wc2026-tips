@@ -11,6 +11,7 @@ import {
   loadRankBaseline,
   countRankMovements,
   loadParticipantsBracketReady,
+  wipeBracketCompetitionData,
   RANK_BASELINE_SQL_HINT,
 } from "../lib/api.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
@@ -190,14 +191,17 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     if (!confirm("Delete ALL brackets and results? Everyone starts fresh.")) return;
     setResetBusy(true);
     setResetMsg("");
-    const { error } = await supabase.rpc("wipe_bracket_competition_data");
-    if (error) setResetMsg("Run supabase/migrate-bracket-format.sql first, then try again.");
-    else {
+    try {
+      await wipeBracketCompetitionData(supabase);
       await loadAll();
-      setResetMsg("✅ Wiped.");
+      setResetMsg("✅ All tips and results wiped.");
+    } catch (e) {
+      setResetMsg(
+        `❌ Could not wipe. Run supabase/wipe-competition.sql in the Supabase SQL editor, then try again.${e?.message ? ` (${e.message})` : ""}`
+      );
     }
     setResetBusy(false);
-    setTimeout(() => setResetMsg(""), 5000);
+    setTimeout(() => setResetMsg(""), 8000);
   };
 
   const confirmRemoveParticipant = async () => {

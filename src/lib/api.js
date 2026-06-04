@@ -309,3 +309,31 @@ export async function loadParticipantsBracketReady(supabase) {
   }
   return ready;
 }
+
+const WIPE_SENTINEL_UUID = "00000000-0000-0000-0000-000000000000";
+
+/** Clear all bracket tips, admin results, and rank baseline (participants unchanged). */
+export async function wipeBracketCompetitionData(supabase) {
+  const { error: rpcError } = await supabase.rpc("wipe_bracket_competition_data");
+  if (!rpcError) return;
+
+  const tables = [
+    ["group_rank_tips", "id", WIPE_SENTINEL_UUID],
+    ["third_place_tips", "id", WIPE_SENTINEL_UUID],
+    ["knockout_tips", "id", WIPE_SENTINEL_UUID],
+    ["group_results", "group_name", ""],
+    ["third_place_results", "group_name", ""],
+    ["knockout_results", "match_num", -1],
+  ];
+  for (const [table, col, sentinel] of tables) {
+    await assertNoError(
+      await supabase.from(table).delete().neq(col, sentinel),
+      `Could not clear ${table}`
+    );
+  }
+  try {
+    await persistRankBaseline(supabase, {});
+  } catch {
+    await supabase.from("settings").upsert({ key: PREV_RANKS_KEY, value: "{}" }, { onConflict: "key" });
+  }
+}

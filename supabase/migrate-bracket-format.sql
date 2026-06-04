@@ -114,12 +114,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  DELETE FROM group_rank_tips;
-  DELETE FROM third_place_tips;
-  DELETE FROM knockout_tips;
-  DELETE FROM group_results;
-  DELETE FROM third_place_results;
-  DELETE FROM knockout_results;
+  DELETE FROM group_rank_tips WHERE id IS NOT NULL;
+  DELETE FROM third_place_tips WHERE id IS NOT NULL;
+  DELETE FROM knockout_tips WHERE id IS NOT NULL;
+  DELETE FROM group_results WHERE group_name IS NOT NULL;
+  DELETE FROM third_place_results WHERE group_name IS NOT NULL;
+  DELETE FROM knockout_results WHERE match_num IS NOT NULL;
   INSERT INTO settings (key, value)
   VALUES ('prev_ranks', '{}')
   ON CONFLICT (key) DO UPDATE SET value = '{}';
