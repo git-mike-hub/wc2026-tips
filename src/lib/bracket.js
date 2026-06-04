@@ -119,6 +119,16 @@ export function getPredictedChampion(knockout) {
   return knockout?.[MATCHES.final.num] || null;
 }
 
+/** Semi winners + champion (bonus picks), in bracket order. */
+export function getTop3BracketPicks(knockout) {
+  const w = knockout || {};
+  return [
+    w[MATCHES.semis[0].num] || null,
+    w[MATCHES.semis[1].num] || null,
+    w[MATCHES.final.num] || null,
+  ];
+}
+
 export function getThirdPlaceTeamsFromGroups(groupRankings) {
   return GROUP_KEYS.map((g) => {
     const slots = normalizeGroupSlots(groupRankings[g]);

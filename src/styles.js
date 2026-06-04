@@ -95,6 +95,8 @@ export const styles = `
   .alert-error{background:rgba(255,107,107,0.15);border:1px solid rgba(255,107,107,0.35);color:var(--red);}
   .alert-success{background:rgba(245,197,24,0.12);border:1px solid rgba(245,197,24,0.35);color:var(--gold);}
   .alert-warn{background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:var(--gold);}
+  .top3-picks{display:inline-flex;align-items:center;gap:6px;}
+  .top3-flag{font-size:1.35em;line-height:1;}
   .leaderboard-table{width:100%;border-collapse:collapse;}
   .leaderboard-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);}
   .leaderboard-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.08);}

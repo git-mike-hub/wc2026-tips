@@ -112,7 +112,7 @@ export default function App() {
             tipsRefreshKey={homeTipsKey}
           />
         )}
-        {view === "leaderboard" && <LeaderboardView user={user} />}
+        {view === "leaderboard" && <LeaderboardView user={user} tipsLocked={tipsLocked} />}
         {view === "tips" && user && (
           <TipsView
             key={`${user.id}-${tipsInitialTab}`}
@@ -304,13 +304,13 @@ function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBr
   );
 }
 
-function LeaderboardView({ user }) {
+function LeaderboardView({ user, tipsLocked }) {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadLeaderboard = async () => {
     setLoading(true);
-    const rows = await buildLeaderboardRows(supabase);
+    const rows = await buildLeaderboardRows(supabase, { includeTop3: tipsLocked });
     setParticipants(rows);
     setLoading(false);
   };
@@ -322,7 +322,7 @@ function LeaderboardView({ user }) {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, []);
+  }, [tipsLocked]);
 
   if (loading) return <div className="loading-wrap"><div className="spinner" /></div>;
 
@@ -355,6 +355,7 @@ function LeaderboardView({ user }) {
             <tr>
               <th style={{ paddingLeft: 16 }}>#</th>
               <th>Player</th>
+              {tipsLocked && <th>Top 3 Picks</th>}
               <th>Change</th>
               <th style={{ textAlign: "right", paddingRight: 16 }}>Points</th>
             </tr>
@@ -364,6 +365,22 @@ function LeaderboardView({ user }) {
               <tr key={p.id}>
                 <td style={{ paddingLeft: 16 }}><span className={`rank-badge rank-${p.rank <= 3 ? p.rank : "other"}`}>{p.rank}</span></td>
                 <td><strong>{p.name}</strong>{user?.id === p.id && <span className="you-badge">YOU</span>}</td>
+                {tipsLocked && (
+                  <td>
+                    <span className="top3-picks" aria-label="Top 3 picks: semi-finals and champion">
+                      {(p.top3 || [null, null, null]).map((team, idx) => (
+                        <span
+                          key={idx}
+                          className="top3-flag"
+                          title={team || "No pick"}
+                          aria-label={team || "No pick"}
+                        >
+                          {team ? FLAGS[team] || "🏳" : "—"}
+                        </span>
+                      ))}
+                    </span>
+                  </td>
+                )}
                 <td>
                   <span className="rank-change-cell">
                     {p.change === null ? (
