@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
-import { supabase, hashPIN } from "./constants.js";
+import { supabase, hashPIN, FLAGS } from "./constants.js";
 import { styles } from "./styles.js";
 import { loadResults, getParticipantPoints } from "./lib/api.js";
 import { TipsView } from "./views/TipsView.jsx";
 import { AdminView } from "./views/AdminView.jsx";
 import { AppNav } from "./components/AppNav.jsx";
 import { loadParticipantTips } from "./lib/api.js";
-import { hasStartedBracketTips, isBracketTipsComplete } from "./lib/bracket.js";
+import {
+  getIncompleteTipsTab,
+  getPredictedChampion,
+  hasStartedBracketTips,
+  isBracketTipsComplete,
+} from "./lib/bracket.js";
 
 const LOGO_WITH_NAME = "/eshkol-logo-with-name.png";
 const APP_TITLE = "World Cup 2026 Competition";
@@ -25,6 +30,12 @@ export default function App() {
   const [view, setView] = useState("home");
   const [loading, setLoading] = useState(true);
   const [tipsLocked, setTipsLocked] = useState(false);
+  const [tipsInitialTab, setTipsInitialTab] = useState("groups");
+
+  const openTips = (tab = "groups") => {
+    setTipsInitialTab(tab);
+    setView("tips");
+  };
 
   const scrollToSignIn = () => {
     setView("home");
@@ -52,7 +63,7 @@ export default function App() {
   const login = (u) => {
     setUser(u);
     localStorage.setItem("wc2026_user", JSON.stringify(u));
-    setView("tips");
+    openTips("groups");
   };
   const logout = () => {
     setUser(null);
@@ -78,15 +89,31 @@ export default function App() {
         onHome={() => setView("home")}
         onRules={goToRules}
         onLeaderboard={() => setView("leaderboard")}
-        onTips={() => setView("tips")}
+        onTips={() => openTips("groups")}
         onAdmin={() => setView("admin")}
         onSignIn={scrollToSignIn}
         onLogout={logout}
       />
       <div className="app">
-        {view === "home" && <HomeView user={user} onLogin={login} tipsLocked={tipsLocked} setView={setView} />}
+        {view === "home" && (
+          <HomeView
+            user={user}
+            onLogin={login}
+            tipsLocked={tipsLocked}
+            setView={setView}
+            onContinueTips={openTips}
+            onOpenBracket={() => openTips("groups")}
+          />
+        )}
         {view === "leaderboard" && <LeaderboardView user={user} />}
-        {view === "tips" && user && <TipsView user={user} tipsLocked={tipsLocked} />}
+        {view === "tips" && user && (
+          <TipsView
+            key={`${user.id}-${tipsInitialTab}`}
+            user={user}
+            tipsLocked={tipsLocked}
+            initialTab={tipsInitialTab}
+          />
+        )}
         {view === "admin" && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked} />}
       </div>
     </>
@@ -117,7 +144,7 @@ function HomeRulesBrief() {
   );
 }
 
-function HomeView({ user, onLogin, tipsLocked, setView }) {
+function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBracket }) {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -126,16 +153,27 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
   const [bracketIncomplete, setBracketIncomplete] = useState(false);
+  const [championPick, setChampionPick] = useState(null);
+  const [continueTipsTab, setContinueTipsTab] = useState("groups");
 
   useEffect(() => {
-    if (!user || tipsLocked) {
+    if (!user) {
       setBracketIncomplete(false);
+      setChampionPick(null);
       return;
     }
     loadParticipantTips(supabase, user.id).then((tips) => {
-      const started = hasStartedBracketTips(tips.groupRanks, tips.thirdGroups, tips.knockout);
       const complete = isBracketTipsComplete(tips.groupRanks, tips.thirdGroups, tips.knockout);
+      setChampionPick(complete ? getPredictedChampion(tips.knockout) : null);
+      if (tipsLocked) {
+        setBracketIncomplete(false);
+        return;
+      }
+      const started = hasStartedBracketTips(tips.groupRanks, tips.thirdGroups, tips.knockout);
       setBracketIncomplete(started && !complete);
+      setContinueTipsTab(
+        getIncompleteTipsTab(tips.groupRanks, tips.thirdGroups, tips.knockout) || "groups"
+      );
     });
   }, [user?.id, tipsLocked]);
 
@@ -173,19 +211,36 @@ function HomeView({ user, onLogin, tipsLocked, setView }) {
         <div className="hero">
           <HeroBrand />
           <div className="hero-deadline">{tipsLocked ? <>🔒 Tips <strong>locked</strong></> : <>🟢 Tips <strong>open</strong></>}</div>
-          {bracketIncomplete && (
+          {championPick ? (
+            <div className="hero-champion-pick">
+              <p className="hero-champion-line">
+                Your World Champion pick is:{" "}
+                <span className="hero-champion-team">
+                  <span className="hero-champion-flag" aria-hidden="true">{FLAGS[championPick] || "🏳"}</span>
+                  {championPick}
+                </span>
+              </p>
+              <p className="hero-champion-luck">Good Luck 🤞</p>
+            </div>
+          ) : bracketIncomplete ? (
             <div className="hero-bracket-warning">
               ⚠️ You still need to finish filling out your bracket.{" "}
-              <button type="button" className="hero-bracket-warning-link" onClick={() => setView("tips")}>
+              <button
+                type="button"
+                className="hero-bracket-warning-link"
+                onClick={() => onContinueTips(continueTipsTab)}
+              >
                 Continue your picks →
               </button>
             </div>
-          )}
+          ) : null}
         </div>
         <div className="card">
           <div className="card-title">👋 Welcome, {user.name}!</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" className="btn btn-primary" style={{ maxWidth: 160 }} onClick={() => setView("tips")}>My Bracket</button>
+            <button type="button" className="btn btn-primary" style={{ maxWidth: 160 }} onClick={onOpenBracket}>
+              My Bracket
+            </button>
             <button type="button" className="btn btn-secondary" style={{ maxWidth: 160 }} onClick={() => setView("leaderboard")}>Ranks</button>
           </div>
         </div>

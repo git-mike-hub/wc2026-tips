@@ -1,11 +1,13 @@
 import { GROUP_KEYS } from "../data/groups.js";
+import { normalizeGroupSlots } from "./bracket.js";
 import { calculateTotalPoints } from "./scoring.js";
 
 export function rowsToGroupRanks(rows) {
   const groupRanks = {};
   (rows || []).forEach((r) => {
-    if (!groupRanks[r.group_name]) groupRanks[r.group_name] = [];
-    groupRanks[r.group_name][r.position - 1] = r.team_name;
+    if (!groupRanks[r.group_name]) groupRanks[r.group_name] = [null, null, null, null];
+    const pos = r.position - 1;
+    if (pos >= 0 && pos < 4) groupRanks[r.group_name][pos] = r.team_name;
   });
   return groupRanks;
 }
@@ -16,6 +18,40 @@ export function rowsToKnockoutMap(rows) {
     m[r.match_num] = r.winner_team;
   });
   return m;
+}
+
+function buildGroupRowsFromRanks(groupRanks, extraFields = () => ({})) {
+  const rows = [];
+  const seen = new Set();
+  for (const g of GROUP_KEYS) {
+    const slots = normalizeGroupSlots(groupRanks[g]);
+    for (let pos = 0; pos < 4; pos++) {
+      const team = slots[pos];
+      if (!team) continue;
+      const key = `${g}:${pos + 1}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({
+        group_name: g,
+        team_name: team,
+        position: pos + 1,
+        ...extraFields(g, pos, team),
+      });
+    }
+  }
+  return rows;
+}
+
+function buildGroupRankRows(participantId, groupRanks) {
+  return buildGroupRowsFromRanks(groupRanks, () => ({ participant_id: participantId }));
+}
+
+async function assertNoError(result, label) {
+  if (result?.error) {
+    const err = new Error(result.error.message || label);
+    err.cause = result.error;
+    throw err;
+  }
 }
 
 export async function loadResults(supabase) {
@@ -51,27 +87,34 @@ export async function getParticipantPoints(supabase, participantId, results) {
 }
 
 export async function saveParticipantTips(supabase, participantId, { groupRanks, thirdGroups, knockout }) {
-  await supabase.from("group_rank_tips").delete().eq("participant_id", participantId);
-  await supabase.from("third_place_tips").delete().eq("participant_id", participantId);
-  await supabase.from("knockout_tips").delete().eq("participant_id", participantId);
+  await assertNoError(
+    await supabase.from("group_rank_tips").delete().eq("participant_id", participantId),
+    "Could not clear group tips"
+  );
+  await assertNoError(
+    await supabase.from("third_place_tips").delete().eq("participant_id", participantId),
+    "Could not clear third-place tips"
+  );
+  await assertNoError(
+    await supabase.from("knockout_tips").delete().eq("participant_id", participantId),
+    "Could not clear knockout tips"
+  );
 
-  const groupRows = [];
-  for (const g of GROUP_KEYS) {
-    const ranks = groupRanks[g] || [];
-    ranks.forEach((team, i) => {
-      if (team) groupRows.push({ participant_id: participantId, group_name: g, team_name: team, position: i + 1 });
-    });
-  }
+  const groupRows = buildGroupRankRows(participantId, groupRanks);
   if (groupRows.length) {
-    const { error } = await supabase.from("group_rank_tips").insert(groupRows);
-    if (error) throw error;
+    await assertNoError(
+      await supabase.from("group_rank_tips").insert(groupRows),
+      "Could not save group rankings"
+    );
   }
 
   if (thirdGroups?.length) {
-    const { error } = await supabase.from("third_place_tips").insert(
-      thirdGroups.map((group_name) => ({ participant_id: participantId, group_name }))
+    await assertNoError(
+      await supabase.from("third_place_tips").insert(
+        thirdGroups.map((group_name) => ({ participant_id: participantId, group_name }))
+      ),
+      "Could not save third-place picks"
     );
-    if (error) throw error;
   }
 
   const koRows = Object.entries(knockout || {})
@@ -82,19 +125,16 @@ export async function saveParticipantTips(supabase, participantId, { groupRanks,
       winner_team,
     }));
   if (koRows.length) {
-    const { error } = await supabase.from("knockout_tips").insert(koRows);
-    if (error) throw error;
+    await assertNoError(
+      await supabase.from("knockout_tips").insert(koRows),
+      "Could not save knockout picks"
+    );
   }
 }
 
 export async function saveGroupResults(supabase, groupRanks) {
   await supabase.from("group_results").delete().in("group_name", GROUP_KEYS);
-  const rows = [];
-  for (const g of GROUP_KEYS) {
-    (groupRanks[g] || []).forEach((team, i) => {
-      if (team) rows.push({ group_name: g, team_name: team, position: i + 1 });
-    });
-  }
+  const rows = buildGroupRowsFromRanks(groupRanks);
   if (rows.length) await supabase.from("group_results").insert(rows);
 }
 

@@ -63,6 +63,24 @@ export function KnockoutPicker({
     return scoreKnockoutBreakdown(winners, actualWinners);
   }, [showScore, actualWinners, winners]);
 
+  const scrollToRoundColumn = (roundKey) => {
+    const container = scrollRef.current;
+    const col = colRefs.current[roundKey];
+    if (!col) return;
+
+    if (container) {
+      const pad = 12;
+      const colRect = col.getBoundingClientRect();
+      const contRect = container.getBoundingClientRect();
+      const left = container.scrollLeft + (colRect.left - contRect.left) - pad;
+      container.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+    }
+
+    const navOffset = 72;
+    const top = col.getBoundingClientRect().top + window.scrollY - navOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  };
+
   useEffect(() => {
     const live = getLiveFixtures(groupRanks, thirdGroups, winners);
     const keys = BRACKET_ROUND_ORDER.map((r) => r.key);
@@ -70,15 +88,14 @@ export function KnockoutPicker({
       const r = keys[i];
       const was = prevCompleteRef.current[r];
       const now = roundIsComplete(r, live, winners);
+      prevCompleteRef.current[r] = now;
       if (!was && now) {
         const next = keys[i + 1];
-        const el = colRefs.current[next];
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-        }
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => scrollToRoundColumn(next));
+        });
         break;
       }
-      prevCompleteRef.current[r] = now;
     }
   }, [winners, groupRanks, thirdGroups]);
 

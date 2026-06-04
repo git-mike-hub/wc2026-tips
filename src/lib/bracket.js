@@ -115,12 +115,48 @@ export function getPredictedFinalists(winnersByNum) {
   return [winnersByNum[MATCHES.semis[0].num], winnersByNum[MATCHES.semis[1].num]].filter(Boolean);
 }
 
+export function getPredictedChampion(knockout) {
+  return knockout?.[MATCHES.final.num] || null;
+}
+
 export function getThirdPlaceTeamsFromGroups(groupRankings) {
-  return GROUP_KEYS.map((g) => ({ group: g, team: groupRankings[g]?.[2] })).filter((x) => x.team);
+  return GROUP_KEYS.map((g) => {
+    const slots = normalizeGroupSlots(groupRankings[g]);
+    return { group: g, team: slots[2] };
+  }).filter((x) => x.team);
+}
+
+/** Four slots per group: index 0 = 1st … index 3 = 4th (null = unfilled). */
+export function normalizeGroupSlots(order) {
+  const slots = [null, null, null, null];
+  if (!order?.length) return slots;
+
+  const hasGap = order.slice(0, 4).some((t, i) => !t && order.slice(i + 1, 4).some(Boolean));
+  if (hasGap) {
+    for (let i = 0; i < 4; i++) {
+      if (order[i]) slots[i] = order[i];
+    }
+    return slots;
+  }
+
+  order.filter(Boolean).slice(0, 4).forEach((team, i) => {
+    slots[i] = team;
+  });
+  return slots;
+}
+
+export function applyAutoFourthSlot(slots, group) {
+  const s = [...normalizeGroupSlots(slots)];
+  if (s.filter(Boolean).length === 3) {
+    const fourth = GROUPS[group].find((t) => !s.includes(t));
+    const idx = s.findIndex((x) => !x);
+    if (fourth && idx >= 0) s[idx] = fourth;
+  }
+  return s;
 }
 
 export function isGroupRankingComplete(ranks) {
-  return GROUP_KEYS.every((g) => ranks[g]?.filter(Boolean).length === 4);
+  return GROUP_KEYS.every((g) => normalizeGroupSlots(ranks[g]).every(Boolean));
 }
 
 export function getAllKnockoutMatchNums() {
@@ -147,8 +183,16 @@ export function isBracketTipsComplete(groupRanks, thirdGroups, knockout) {
   );
 }
 
+/** First tips tab that still needs work; null if bracket is complete. */
+export function getIncompleteTipsTab(groupRanks, thirdGroups, knockout) {
+  if (!isGroupRankingComplete(groupRanks)) return "groups";
+  if ((thirdGroups || []).length < 8) return "third";
+  if (!isKnockoutTipsComplete(knockout)) return "knockout";
+  return null;
+}
+
 export function hasStartedBracketTips(groupRanks, thirdGroups, knockout) {
-  if (GROUP_KEYS.some((g) => (groupRanks[g] || []).some(Boolean))) return true;
+  if (GROUP_KEYS.some((g) => normalizeGroupSlots(groupRanks[g]).some(Boolean))) return true;
   if ((thirdGroups || []).length > 0) return true;
   if (Object.keys(knockout || {}).length > 0) return true;
   return false;

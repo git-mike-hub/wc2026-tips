@@ -6,11 +6,12 @@ import {
   isBracketTipsComplete,
 } from "../lib/bracket.js";
 import { loadParticipantTips, saveParticipantTips, loadResults } from "../lib/api.js";
+import { formatSaveError } from "../lib/saveErrors.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
 import { KnockoutPicker } from "../components/KnockoutPicker.jsx";
 
-export function TipsView({ user, tipsLocked }) {
-  const [tab, setTab] = useState("groups");
+export function TipsView({ user, tipsLocked, initialTab = "groups" }) {
+  const [tab, setTab] = useState(initialTab);
   const [groupRanks, setGroupRanks] = useState({});
   const [thirdGroups, setThirdGroups] = useState([]);
   const [knockout, setKnockout] = useState({});
@@ -35,6 +36,10 @@ export function TipsView({ user, tipsLocked }) {
     })();
   }, [user.id]);
 
+  useEffect(() => {
+    if (!loading) setTab(initialTab);
+  }, [initialTab, loading]);
+
   const groupsDone = isGroupRankingComplete(groupRanks);
   const thirdOptions = getThirdPlaceTeamsFromGroups(groupRanks);
   const thirdDone = thirdGroups.length === 8;
@@ -50,23 +55,31 @@ export function TipsView({ user, tipsLocked }) {
     setDirty(true);
   };
 
-  const saveAll = async () => {
+  const saveAll = async ({ nextTab } = {}) => {
     setSaving(true);
     setSaveMsg("");
-    const wasThirdTab = tab === "third";
     try {
       await saveParticipantTips(supabase, user.id, { groupRanks, thirdGroups, knockout });
       setDirty(false);
       const complete = isBracketTipsComplete(groupRanks, thirdGroups, knockout);
       setSaveMsg(complete ? "✅ Bracket saved!" : "✅ Progress saved — come back anytime to finish.");
-      if (wasThirdTab && thirdDone) {
-        setTab("knockout");
-      }
-    } catch {
-      setSaveMsg("❌ Error saving. Try again.");
+      if (nextTab) setTab(nextTab);
+    } catch (err) {
+      setSaveMsg(`❌ ${formatSaveError(err)}`);
+      return false;
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(""), 4000);
     }
-    setSaving(false);
-    setTimeout(() => setSaveMsg(""), 4000);
+    return true;
+  };
+
+  const continueTo = async (nextTab) => {
+    if (tipsLocked) {
+      setTab(nextTab);
+      return;
+    }
+    await saveAll({ nextTab });
   };
 
   if (loading) return <div className="loading-wrap"><div className="spinner" /></div>;
@@ -99,7 +112,15 @@ export function TipsView({ user, tipsLocked }) {
           />
           {!tipsLocked && groupsDone && (
             <div className="step-nav">
-              <button type="button" className="btn btn-primary" style={{ maxWidth: 220 }} onClick={() => setTab("third")}>Continue to Best 8 Third →</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ maxWidth: 280 }}
+                disabled={saving}
+                onClick={() => continueTo("third")}
+              >
+                {saving ? "Saving…" : "Save & continue to Best 8 Third →"}
+              </button>
             </div>
           )}
         </>
@@ -124,7 +145,15 @@ export function TipsView({ user, tipsLocked }) {
           </div>
           <p className="count-badge">{thirdGroups.length}/8 selected</p>
           {!tipsLocked && thirdDone && (
-            <button type="button" className="btn btn-primary mt-16" style={{ maxWidth: 220 }} onClick={() => setTab("knockout")}>Continue to Knockout →</button>
+            <button
+              type="button"
+              className="btn btn-primary mt-16"
+              style={{ maxWidth: 260 }}
+              disabled={saving}
+              onClick={() => continueTo("knockout")}
+            >
+              {saving ? "Saving…" : "Save & continue to Knockout →"}
+            </button>
           )}
         </div>
         </div>

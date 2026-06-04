@@ -49,6 +49,11 @@ export const styles = `
   .hero-deadline strong{color:var(--gold);}
   .hero-bracket-warning{margin:14px auto 0;max-width:520px;padding:12px 16px;background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.35);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.55;}
   .hero-bracket-warning-link{background:none;border:none;color:var(--gold);font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-family:'DM Sans',sans-serif;font-size:13px;}
+  .hero-champion-pick{margin:14px auto 0;max-width:520px;padding:12px 16px;background:rgba(245,197,24,0.12);border:1px solid rgba(245,197,24,0.35);border-radius:10px;font-size:14px;color:var(--text2);line-height:1.55;text-align:center;}
+  .hero-champion-line{margin:0;}
+  .hero-champion-luck{margin:10px 0 0;font-weight:600;color:var(--gold);font-size:15px;}
+  .hero-champion-team{display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--gold);margin-left:4px;}
+  .hero-champion-flag{font-size:1.35em;line-height:1;}
   @media(min-width:769px){
     .nav-burger{display:none!important;}
     .nav-tabs{display:flex!important;position:static;flex-direction:row;box-shadow:none;border:none;padding:0;background:transparent;}
@@ -141,8 +146,8 @@ export const styles = `
   .bracket-scroll{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;padding:16px 8px 24px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
   .bracket-scroll::-webkit-scrollbar{height:6px;}
   .bracket-scroll::-webkit-scrollbar-thumb{background:rgba(10,30,61,0.25);border-radius:3px;}
-  .bracket-column{flex:0 0 auto;scroll-snap-align:start;padding:0 12px;min-width:min(300px,88vw);}
-  .bracket-column-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--navy);letter-spacing:0.06em;margin-bottom:14px;text-align:center;}
+  .bracket-column{flex:0 0 auto;scroll-snap-align:start;padding:0 12px;min-width:min(300px,88vw);scroll-margin-top:72px;}
+  .bracket-column-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--navy);letter-spacing:0.06em;margin-bottom:14px;text-align:center;scroll-margin-top:72px;}
   .bracket-column-matches{display:flex;flex-direction:column;gap:20px;}
   .bracket-match-wrap{position:relative;}
   .bracket-feed-badge{display:inline-flex;flex-direction:column;align-items:center;background:var(--navy);color:#fff;padding:4px 10px;border-radius:6px;margin-bottom:6px;font-size:10px;line-height:1.2;}
