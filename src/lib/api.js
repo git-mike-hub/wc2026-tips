@@ -86,6 +86,32 @@ export async function getParticipantPoints(supabase, participantId, results) {
   return calculateTotalPoints(tips.groupRanks, tips.thirdGroups, tips.knockout, res);
 }
 
+/** Current leaderboard position by participant id (1 = first). */
+export async function computeParticipantRankMap(supabase) {
+  const { data: parts } = await supabase.from("participants").select("id");
+  const res = await loadResults(supabase);
+  const scores = await Promise.all(
+    (parts || []).map(async (p) => ({
+      id: p.id,
+      total: (await getParticipantPoints(supabase, p.id, res)).total,
+    }))
+  );
+  scores.sort((a, b) => b.total - a.total || String(a.id).localeCompare(String(b.id)));
+  const rankMap = {};
+  scores.forEach((p, i) => {
+    rankMap[p.id] = i + 1;
+  });
+  return rankMap;
+}
+
+/** Store ranks from before the latest scoring update (for leaderboard arrows). */
+export async function persistPrevRanks(supabase, rankMap) {
+  await supabase.from("settings").upsert(
+    { key: "prev_ranks", value: JSON.stringify(rankMap) },
+    { onConflict: "key" }
+  );
+}
+
 export async function saveParticipantTips(supabase, participantId, { groupRanks, thirdGroups, knockout }) {
   await assertNoError(
     await supabase.from("group_rank_tips").delete().eq("participant_id", participantId),

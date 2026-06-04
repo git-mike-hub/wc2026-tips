@@ -327,7 +327,11 @@ function LeaderboardView({ user }) {
     setParticipants(
       scores.map((p, i) => ({
         ...p,
-        change: !hasSnapshot ? null : prevRanks[p.id] ? prevRanks[p.id] - (i + 1) : 0,
+        change: !hasSnapshot
+          ? null
+          : prevRanks[p.id] == null
+            ? null
+            : prevRanks[p.id] - (i + 1),
       }))
     );
     setLoading(false);
@@ -339,10 +343,16 @@ function LeaderboardView({ user }) {
 
   return (
     <div>
-      <div style={{ margin: "24px 0 16px", display: "flex", justifyContent: "space-between" }}>
+      <div style={{ margin: "24px 0 16px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: "var(--green)" }}>🏆 Rankings</h2>
         <button type="button" className="btn-sm btn-green" onClick={loadLeaderboard}>↻ Refresh</button>
       </div>
+      {participants.some((p) => p.change !== null) && (
+        <p className="section-intro" style={{ margin: "0 0 12px" }}>
+          <span className="rank-change rank-up">▲</span> moved up ·{" "}
+          <span className="rank-change rank-down">▼</span> moved down since last scoring update
+        </p>
+      )}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <table className="leaderboard-table">
           <thead>
@@ -359,10 +369,15 @@ function LeaderboardView({ user }) {
                 <td style={{ paddingLeft: 16 }}><span className={`rank-badge rank-${i < 3 ? i + 1 : "other"}`}>{i + 1}</span></td>
                 <td><strong>{p.name}</strong>{user?.id === p.id && <span className="you-badge">YOU</span>}</td>
                 <td>
-                  {p.change === null ? <span className="rank-same">new</span>
-                    : p.change > 0 ? <span className="rank-change rank-up">▲ {p.change}</span>
-                    : p.change < 0 ? <span className="rank-change rank-down">▼ {Math.abs(p.change)}</span>
-                    : <span className="rank-change rank-same">—</span>}
+                  {p.change === null ? (
+                    <span className="rank-change rank-same">—</span>
+                  ) : p.change > 0 ? (
+                    <span className="rank-change rank-up" title="Moved up">▲ {p.change}</span>
+                  ) : p.change < 0 ? (
+                    <span className="rank-change rank-down" title="Moved down">▼ {Math.abs(p.change)}</span>
+                  ) : (
+                    <span className="rank-change rank-same" title="No change">—</span>
+                  )}
                 </td>
                 <td style={{ textAlign: "right", paddingRight: 16 }}><span className="pts">{p.total}</span></td>
               </tr>
