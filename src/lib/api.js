@@ -1,5 +1,5 @@
 import { GROUP_KEYS } from "../data/groups.js";
-import { normalizeGroupSlots } from "./bracket.js";
+import { isBracketTipsComplete, normalizeGroupSlots } from "./bracket.js";
 import { calculateTotalPoints } from "./scoring.js";
 
 export function rowsToGroupRanks(rows) {
@@ -147,4 +147,38 @@ export async function saveThirdResults(supabase, groups) {
 
 export async function saveKnockoutResult(supabase, matchNum, winner) {
   await supabase.from("knockout_results").upsert({ match_num: matchNum, winner_team: winner }, { onConflict: "match_num" });
+}
+
+/** Map participant id → true when group, third, and knockout tips are all complete. */
+export async function loadParticipantsBracketReady(supabase) {
+  const [{ data: gr }, { data: th }, { data: ko }] = await Promise.all([
+    supabase.from("group_rank_tips").select("participant_id, group_name, team_name, position"),
+    supabase.from("third_place_tips").select("participant_id, group_name"),
+    supabase.from("knockout_tips").select("participant_id, match_num, winner_team"),
+  ]);
+
+  const tipsById = {};
+  const ensure = (id) => {
+    if (!tipsById[id]) {
+      tipsById[id] = { groupRanks: {}, thirdGroups: [], knockout: {} };
+    }
+    return tipsById[id];
+  };
+
+  (gr || []).forEach((r) => {
+    const t = ensure(r.participant_id);
+    if (!t.groupRanks[r.group_name]) t.groupRanks[r.group_name] = [null, null, null, null];
+    const pos = r.position - 1;
+    if (pos >= 0 && pos < 4) t.groupRanks[r.group_name][pos] = r.team_name;
+  });
+  (th || []).forEach((r) => ensure(r.participant_id).thirdGroups.push(r.group_name));
+  (ko || []).forEach((r) => {
+    ensure(r.participant_id).knockout[r.match_num] = r.winner_team;
+  });
+
+  const ready = {};
+  for (const [id, tips] of Object.entries(tipsById)) {
+    ready[id] = isBracketTipsComplete(tips.groupRanks, tips.thirdGroups, tips.knockout);
+  }
+  return ready;
 }

@@ -26,15 +26,33 @@ export function GroupRankPicker({ ranks, onChange, locked, results, showScore })
     onChange({ ...ranks, [group]: slots });
   };
 
+  const resetGroup = (group) => {
+    if (locked) return;
+    onChange({ ...ranks, [group]: [null, null, null, null] });
+  };
+
   return (
     <div className="tips-inner">
       {GROUP_KEYS.map((g) => {
         const slots = normalizeGroupSlots(ranks[g]);
         const actual = results?.[g];
+        const hasPicks = slots.some(Boolean);
 
         return (
           <div key={g} className="group-board">
-            <h3 className="group-board-title">Group {g}</h3>
+            <div className="group-board-head">
+              <h3 className="group-board-title">Group {g}</h3>
+              {!locked && hasPicks && (
+                <button
+                  type="button"
+                  className="group-reset-btn"
+                  onClick={() => resetGroup(g)}
+                  aria-label={`Reset Group ${g}`}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
             <div className="group-board-cols">
               <div className="group-board-teams-col">
                 {GROUPS[g].map((team) => {

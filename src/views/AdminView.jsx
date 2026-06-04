@@ -7,6 +7,7 @@ import {
   saveThirdResults,
   saveKnockoutResult,
   getParticipantPoints,
+  loadParticipantsBracketReady,
 } from "../lib/api.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
 import { KnockoutPicker } from "../components/KnockoutPicker.jsx";
@@ -17,6 +18,7 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   const [thirdGroups, setThirdGroups] = useState([]);
   const [knockout, setKnockout] = useState({});
   const [participants, setParticipants] = useState([]);
+  const [bracketReady, setBracketReady] = useState({});
   const [newPin, setNewPin] = useState({});
   const [msg, setMsg] = useState({});
   const [loading, setLoading] = useState(true);
@@ -29,11 +31,13 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
 
   const loadAll = async () => {
     setLoading(true);
-    const [{ data: parts }, res] = await Promise.all([
+    const [{ data: parts }, res, ready] = await Promise.all([
       supabase.from("participants").select("*").order("name"),
       loadResults(supabase),
+      loadParticipantsBracketReady(supabase),
     ]);
     setParticipants(parts || []);
+    setBracketReady(ready);
     setGroupRanks(res.groups || {});
     setThirdGroups(res.thirdGroups || []);
     setKnockout(res.knockout || {});
@@ -115,6 +119,11 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
       );
     } else {
       setParticipants((list) => list.filter((x) => x.id !== p.id));
+      setBracketReady((m) => {
+        const next = { ...m };
+        delete next[p.id];
+        return next;
+      });
       const { data: prevData } = await supabase.from("settings").select("value").eq("key", "prev_ranks").maybeSingle();
       try {
         const prevRanks = JSON.parse(prevData?.value || "{}");
@@ -247,8 +256,13 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
           <p className="section-intro">{participants.length} participants.</p>
           {participants.map((p) => (
             <div key={p.id} className="participant-row">
-              <div>
+              <div className="participant-name-wrap">
                 <strong>{p.name}</strong>
+                {bracketReady[p.id] && (
+                  <span className="participant-ready" title="Bracket complete">
+                    Ready
+                  </span>
+                )}
                 {p.is_admin && <span style={{ fontSize: 11, color: "var(--green2)", marginLeft: 6 }}>★ admin</span>}
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

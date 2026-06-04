@@ -112,7 +112,10 @@ export const styles = `
   .group-header{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text2);letter-spacing:0.1em;padding:12px 0 8px;display:flex;align-items:center;gap:12px;}
   .group-header::after{content:'';flex:1;height:1px;background:var(--border);}
   .group-board{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);}
-  .group-board-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;letter-spacing:0.06em;margin-bottom:14px;line-height:1;}
+  .group-board-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+  .group-board-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;letter-spacing:0.06em;margin:0;line-height:1;}
+  .group-reset-btn{padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;}
+  .group-reset-btn:hover{border-color:rgba(255,107,107,0.5);color:var(--red);background:rgba(255,107,107,0.12);}
   .group-board-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:stretch;}
   .group-board-teams-col,.group-board-slots-col{display:flex;flex-direction:column;gap:10px;}
   .group-team-pill{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(30,80,150,0.45);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);cursor:pointer;user-select:none;transition:background 0.15s,border-color 0.15s,opacity 0.15s;}
@@ -188,6 +191,8 @@ export const styles = `
   .lock-toggle{display:flex;align-items:center;gap:12px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;}
   .lock-status-desc{font-size:12px;color:var(--text3);margin-top:2px;}
   .participant-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;flex-wrap:wrap;gap:8px;}
+  .participant-name-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
+  .participant-ready{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;background:rgba(76,175,80,0.22);border:1px solid rgba(129,199,132,0.75);color:#a5d6a7;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;line-height:1.4;}
   .result-saved{font-size:12px;color:var(--gold);font-weight:600;}
   .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite;margin:40px auto;}
   @keyframes spin{to{transform:rotate(360deg);}}
