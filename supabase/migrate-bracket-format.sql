@@ -127,3 +127,19 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION wipe_bracket_competition_data() TO anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
+
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read settings" ON settings;
+CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public insert settings" ON settings;
+CREATE POLICY "Public insert settings" ON settings FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public update settings" ON settings;
+CREATE POLICY "Public update settings" ON settings FOR UPDATE USING (true);

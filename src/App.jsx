@@ -315,7 +315,14 @@ function LeaderboardView({ user }) {
     setLoading(false);
   };
 
-  useEffect(() => { loadLeaderboard(); }, []);
+  useEffect(() => {
+    loadLeaderboard();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadLeaderboard();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   if (loading) return <div className="loading-wrap"><div className="spinner" /></div>;
 
@@ -331,9 +338,15 @@ function LeaderboardView({ user }) {
           <span className="rank-change rank-down">▼</span> moved down since last Admin scoring save
         </p>
       )}
+      {participants.length > 0 && !participants[0].hasBaseline && (
+        <p className="section-intro" style={{ margin: "0 0 12px" }}>
+          No rank baseline yet — usually means Supabase is blocking saves. In Admin, tap &quot;Set baseline&quot;;
+          if you see an error, run <code>supabase/settings-policies.sql</code> in the SQL editor, then try again.
+        </p>
+      )}
       {participants.length > 0 && participants[0].hasBaseline && !participants.some((p) => p.change !== null && p.change !== 0) && (
         <p className="section-intro" style={{ margin: "0 0 12px" }}>
-          Arrows appear after the next Admin save that changes points or standings.
+          No position changes vs the last baseline (standings match the snapshot from before the latest scoring save).
         </p>
       )}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -352,15 +365,20 @@ function LeaderboardView({ user }) {
                 <td style={{ paddingLeft: 16 }}><span className={`rank-badge rank-${p.rank <= 3 ? p.rank : "other"}`}>{p.rank}</span></td>
                 <td><strong>{p.name}</strong>{user?.id === p.id && <span className="you-badge">YOU</span>}</td>
                 <td>
-                  {p.change === null ? (
-                    <span className="rank-change rank-same">—</span>
-                  ) : p.change > 0 ? (
-                    <span className="rank-change rank-up" title="Moved up">▲ {p.change}</span>
-                  ) : p.change < 0 ? (
-                    <span className="rank-change rank-down" title="Moved down">▼ {Math.abs(p.change)}</span>
-                  ) : (
-                    <span className="rank-change rank-same" title="No change">—</span>
-                  )}
+                  <span className="rank-change-cell">
+                    {p.change === null ? (
+                      <span className="rank-change rank-same">—</span>
+                    ) : p.change > 0 ? (
+                      <span className="rank-change rank-up" title="Moved up">▲ {p.change}</span>
+                    ) : p.change < 0 ? (
+                      <span className="rank-change rank-down" title="Moved down">▼ {Math.abs(p.change)}</span>
+                    ) : (
+                      <span className="rank-change rank-same" title="No change">—</span>
+                    )}
+                    {p.prevRank != null && p.change !== null && p.change !== 0 && (
+                      <span className="rank-was">was #{p.prevRank}</span>
+                    )}
+                  </span>
                 </td>
                 <td style={{ textAlign: "right", paddingRight: 16 }}><span className="pts">{p.total}</span></td>
               </tr>

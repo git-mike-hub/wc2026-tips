@@ -88,12 +88,31 @@ export async function getParticipantPoints(supabase, participantId, results) {
 
 const PREV_RANKS_KEY = "prev_ranks";
 
+export const RANK_BASELINE_SQL_HINT =
+  "Run supabase/settings-policies.sql in the Supabase SQL editor (fixes rank arrows).";
+
 function normalizeRankMap(rankMap) {
   const out = {};
   for (const [id, rank] of Object.entries(rankMap || {})) {
     out[String(id)] = Number(rank);
   }
   return out;
+}
+
+function parseRankBaselineValue(value) {
+  if (value == null || value === "") return {};
+  let raw = value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  if (raw && typeof raw === "object" && raw.v === 2 && raw.baseline) {
+    return normalizeRankMap(raw.baseline);
+  }
+  return normalizeRankMap(raw);
 }
 
 /** Current leaderboard position by participant id (1 = first). */
@@ -114,26 +133,29 @@ export async function computeParticipantRankMap(supabase) {
   return rankMap;
 }
 
-export async function loadPrevRanks(supabase) {
-  const { data } = await supabase.from("settings").select("value").eq("key", PREV_RANKS_KEY).maybeSingle();
-  if (!data?.value) return {};
-  try {
-    return normalizeRankMap(JSON.parse(data.value));
-  } catch {
-    return {};
-  }
+export async function loadRankBaseline(supabase) {
+  const { data, error } = await supabase.from("settings").select("value").eq("key", PREV_RANKS_KEY).maybeSingle();
+  if (error || !data?.value) return {};
+  return parseRankBaselineValue(data.value);
 }
 
-/** Store ranks from before the latest scoring update (for leaderboard arrows). */
-export async function persistPrevRanks(supabase, rankMap) {
+/** @deprecated alias */
+export const loadPrevRanks = loadRankBaseline;
+
+/** Standings to compare against (ranks before the latest Admin scoring save). */
+export async function persistRankBaseline(supabase, rankMap) {
+  const payload = { v: 2, baseline: normalizeRankMap(rankMap) };
   await assertNoError(
     await supabase.from("settings").upsert(
-      { key: PREV_RANKS_KEY, value: JSON.stringify(normalizeRankMap(rankMap)) },
+      { key: PREV_RANKS_KEY, value: JSON.stringify(payload) },
       { onConflict: "key" }
     ),
     "Could not save rank baseline"
   );
 }
+
+/** @deprecated alias */
+export const persistPrevRanks = persistRankBaseline;
 
 export function countRankMovements(beforeMap, afterMap) {
   const ids = new Set([...Object.keys(beforeMap), ...Object.keys(afterMap)]);
@@ -148,8 +170,8 @@ export function countRankMovements(beforeMap, afterMap) {
 export async function buildLeaderboardRows(supabase) {
   const { data: parts } = await supabase.from("participants").select("id,name,is_admin").order("name");
   const res = await loadResults(supabase);
-  const prevRanks = await loadPrevRanks(supabase);
-  const hasBaseline = Object.keys(prevRanks).length > 0;
+  const baseline = await loadRankBaseline(supabase);
+  const hasBaseline = Object.keys(baseline).length > 0;
 
   const rows = await Promise.all(
     (parts || []).map(async (p) => ({
@@ -163,11 +185,12 @@ export async function buildLeaderboardRows(supabase) {
 
   return rows.map((p, i) => {
     const rank = i + 1;
+    const prevRank = baseline[p.id];
     let change = null;
-    if (hasBaseline && prevRanks[p.id] != null) {
-      change = prevRanks[p.id] - rank;
+    if (hasBaseline && prevRank != null) {
+      change = prevRank - rank;
     }
-    return { ...p, rank, change, hasBaseline };
+    return { ...p, rank, prevRank: prevRank ?? null, change, hasBaseline };
   });
 }
 

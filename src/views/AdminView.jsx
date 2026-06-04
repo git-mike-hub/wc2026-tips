@@ -7,9 +7,11 @@ import {
   saveThirdResults,
   saveKnockoutResult,
   computeParticipantRankMap,
-  persistPrevRanks,
+  persistRankBaseline,
+  loadRankBaseline,
   countRankMovements,
   loadParticipantsBracketReady,
+  RANK_BASELINE_SQL_HINT,
 } from "../lib/api.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
 import { KnockoutPicker } from "../components/KnockoutPicker.jsx";
@@ -59,33 +61,84 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     setLockBusy(false);
   };
 
+  const rankBaselineFailedMsg = () =>
+    `❌ Could not save rank baseline. ${RANK_BASELINE_SQL_HINT}`;
+
   const applyScoringWithRankBaseline = async (applySave) => {
     const ranksBefore = await computeParticipantRankMap(supabase);
     await applySave();
     const ranksAfter = await computeParticipantRankMap(supabase);
-    await persistPrevRanks(supabase, ranksBefore);
-    return countRankMovements(ranksBefore, ranksAfter);
+    const moved = countRankMovements(ranksBefore, ranksAfter);
+    try {
+      await persistRankBaseline(supabase, ranksBefore);
+    } catch {
+      const err = new Error("rank_baseline_failed");
+      err.moved = moved;
+      throw err;
+    }
+    return moved;
+  };
+
+  const setRankingBaseline = async () => {
+    try {
+      const current = await computeParticipantRankMap(supabase);
+      await persistRankBaseline(supabase, current);
+      const check = await loadRankBaseline(supabase);
+      if (Object.keys(check).length === 0) {
+        setMsg((m) => ({ ...m, ranks: rankBaselineFailedMsg() }));
+        return;
+      }
+      setMsg((m) => ({
+        ...m,
+        ranks: "✅ Rank baseline set. Change results, save scoring, then open Ranks.",
+      }));
+      setTimeout(() => setMsg((m) => ({ ...m, ranks: "" })), 5000);
+    } catch {
+      setMsg((m) => ({ ...m, ranks: rankBaselineFailedMsg() }));
+    }
   };
 
   const saveGroups = async () => {
     setSaving(true);
-    const moved = await applyScoringWithRankBaseline(() => saveGroupResults(supabase, groupRanks));
-    setMsg((m) => ({
-      ...m,
-      groups: moved > 0 ? `✅ Saved & scored · ${moved} players moved in rankings` : "✅ Saved & scored",
-    }));
-    setTimeout(() => setMsg((m) => ({ ...m, groups: "" })), 3000);
+    try {
+      const moved = await applyScoringWithRankBaseline(() => saveGroupResults(supabase, groupRanks));
+      setMsg((m) => ({
+        ...m,
+        groups: moved > 0 ? `✅ Saved & scored · ${moved} players moved in rankings` : "✅ Saved & scored",
+      }));
+      setTimeout(() => setMsg((m) => ({ ...m, groups: "" })), 3000);
+    } catch (e) {
+      if (e?.message === "rank_baseline_failed") {
+        setMsg((m) => ({
+          ...m,
+          groups: `✅ Results saved · ${e.moved} moved but ${rankBaselineFailedMsg()}`,
+        }));
+      } else {
+        setMsg((m) => ({ ...m, groups: "❌ Could not save group results" }));
+      }
+    }
     setSaving(false);
   };
 
   const saveThird = async () => {
     setSaving(true);
-    const moved = await applyScoringWithRankBaseline(() => saveThirdResults(supabase, thirdGroups));
-    setMsg((m) => ({
-      ...m,
-      third: moved > 0 ? `✅ Saved & scored · ${moved} players moved in rankings` : "✅ Saved & scored",
-    }));
-    setTimeout(() => setMsg((m) => ({ ...m, third: "" })), 3000);
+    try {
+      const moved = await applyScoringWithRankBaseline(() => saveThirdResults(supabase, thirdGroups));
+      setMsg((m) => ({
+        ...m,
+        third: moved > 0 ? `✅ Saved & scored · ${moved} players moved in rankings` : "✅ Saved & scored",
+      }));
+      setTimeout(() => setMsg((m) => ({ ...m, third: "" })), 3000);
+    } catch (e) {
+      if (e?.message === "rank_baseline_failed") {
+        setMsg((m) => ({
+          ...m,
+          third: `✅ Results saved · ${e.moved} moved but ${rankBaselineFailedMsg()}`,
+        }));
+      } else {
+        setMsg((m) => ({ ...m, third: "❌ Could not save third-place results" }));
+      }
+    }
     setSaving(false);
   };
 
@@ -120,8 +173,15 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
             : `✅ Saved ${toSave.length} match result${toSave.length === 1 ? "" : "s"} · rankings updated`,
       }));
       setTimeout(() => setMsg((m) => ({ ...m, knockout: "" })), 5000);
-    } catch {
-      setMsg((m) => ({ ...m, knockout: "❌ Could not save knockout results" }));
+    } catch (e) {
+      if (e?.message === "rank_baseline_failed") {
+        setMsg((m) => ({
+          ...m,
+          knockout: `✅ Knockout saved · ${e.moved} moved but ${rankBaselineFailedMsg()}`,
+        }));
+      } else {
+        setMsg((m) => ({ ...m, knockout: "❌ Could not save knockout results" }));
+      }
     }
     setSaving(false);
   };
@@ -158,15 +218,11 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
         delete next[p.id];
         return next;
       });
-      const { data: prevData } = await supabase.from("settings").select("value").eq("key", "prev_ranks").maybeSingle();
       try {
-        const prevRanks = JSON.parse(prevData?.value || "{}");
+        const prevRanks = await loadRankBaseline(supabase);
         if (prevRanks[p.id]) {
           delete prevRanks[p.id];
-          await supabase.from("settings").upsert(
-            { key: "prev_ranks", value: JSON.stringify(prevRanks) },
-            { onConflict: "key" }
-          );
+          await persistRankBaseline(supabase, prevRanks);
         }
       } catch {
         /* ignore */
@@ -201,6 +257,18 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
         </div>
         <button type="button" className={`btn-sm ${tipsLocked ? "btn-green" : "btn-red"}`} onClick={toggleLock} disabled={lockBusy}>
           {lockBusy ? "…" : tipsLocked ? "Unlock" : "Lock Tips"}
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="card-title">📊 Ranking arrows</div>
+        <p className="section-intro" style={{ marginBottom: 10 }}>
+          Rankings compare to the baseline from <strong>before</strong> each scoring save. To test arrows: tap
+          &quot;Set baseline&quot;, change results, save scoring, then open Ranks.
+        </p>
+        {msg.ranks && <div className="alert alert-success" style={{ marginBottom: 10 }}>{msg.ranks}</div>}
+        <button type="button" className="btn-sm btn-green" onClick={setRankingBaseline}>
+          Set baseline from current standings
         </button>
       </div>
 
