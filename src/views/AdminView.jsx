@@ -207,32 +207,32 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   const confirmRemoveParticipant = async () => {
     const p = pendingRemove;
     if (!p) return;
-    setPendingRemove(null);
     setRemovingId(p.id);
     setMsg((m) => ({ ...m, [p.id]: "" }));
-    const { error } = await supabase.from("participants").delete().eq("id", p.id);
-    if (error) {
-      alert(
-        "Could not remove participant. If this is a permissions error, run supabase/participant-delete-policy.sql in the Supabase SQL editor, then try again."
-      );
-    } else {
-      setParticipants((list) => list.filter((x) => x.id !== p.id));
-      setBracketReady((m) => {
-        const next = { ...m };
-        delete next[p.id];
-        return next;
-      });
-      try {
-        const prevRanks = await loadRankBaseline(supabase);
-        if (prevRanks[p.id]) {
-          delete prevRanks[p.id];
-          await persistRankBaseline(supabase, prevRanks);
-        }
-      } catch {
-        /* ignore */
-      }
-    }
+    const { data, error } = await supabase.from("participants").delete().eq("id", p.id).select("id");
     setRemovingId(null);
+    if (error || !data?.length) {
+      alert(
+        "Could not remove participant. Run supabase/participant-delete-policy.sql in the Supabase SQL editor, then try again."
+      );
+      return;
+    }
+    setPendingRemove(null);
+    setParticipants((list) => list.filter((x) => x.id !== p.id));
+    setBracketReady((m) => {
+      const next = { ...m };
+      delete next[p.id];
+      return next;
+    });
+    try {
+      const prevRanks = await loadRankBaseline(supabase);
+      if (prevRanks[p.id]) {
+        delete prevRanks[p.id];
+        await persistRankBaseline(supabase, prevRanks);
+      }
+    } catch {
+      /* ignore */
+    }
   };
 
   const resetPin = async (participantId) => {

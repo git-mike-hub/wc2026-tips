@@ -143,3 +143,6 @@ CREATE POLICY "Public insert settings" ON settings FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public update settings" ON settings;
 CREATE POLICY "Public update settings" ON settings FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Public delete participants" ON participants;
+CREATE POLICY "Public delete participants" ON participants FOR DELETE USING (true);
