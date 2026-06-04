@@ -10,7 +10,7 @@ import { formatSaveError } from "../lib/saveErrors.js";
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
 import { KnockoutPicker } from "../components/KnockoutPicker.jsx";
 
-export function TipsView({ user, tipsLocked, initialTab = "groups" }) {
+export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketComplete }) {
   const [tab, setTab] = useState(initialTab);
   const [groupRanks, setGroupRanks] = useState({});
   const [thirdGroups, setThirdGroups] = useState([]);
@@ -63,13 +63,19 @@ export function TipsView({ user, tipsLocked, initialTab = "groups" }) {
       setDirty(false);
       const complete = isBracketTipsComplete(groupRanks, thirdGroups, knockout);
       setSaveMsg(complete ? "✅ Bracket saved!" : "✅ Progress saved — come back anytime to finish.");
-      if (nextTab) setTab(nextTab);
+      if (complete && onBracketComplete) {
+        setTimeout(() => onBracketComplete(), 700);
+      } else if (nextTab) {
+        setTab(nextTab);
+      }
     } catch (err) {
       setSaveMsg(`❌ ${formatSaveError(err)}`);
       return false;
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMsg(""), 4000);
+      if (!isBracketTipsComplete(groupRanks, thirdGroups, knockout)) {
+        setTimeout(() => setSaveMsg(""), 4000);
+      }
     }
     return true;
   };

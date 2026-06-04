@@ -31,10 +31,16 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [tipsLocked, setTipsLocked] = useState(false);
   const [tipsInitialTab, setTipsInitialTab] = useState("groups");
+  const [homeTipsKey, setHomeTipsKey] = useState(0);
 
   const openTips = (tab = "groups") => {
     setTipsInitialTab(tab);
     setView("tips");
+  };
+
+  const goHomeAfterBracketSave = () => {
+    setHomeTipsKey((k) => k + 1);
+    setView("home");
   };
 
   const scrollToSignIn = () => {
@@ -103,6 +109,7 @@ export default function App() {
             setView={setView}
             onContinueTips={openTips}
             onOpenBracket={() => openTips("groups")}
+            tipsRefreshKey={homeTipsKey}
           />
         )}
         {view === "leaderboard" && <LeaderboardView user={user} />}
@@ -112,6 +119,7 @@ export default function App() {
             user={user}
             tipsLocked={tipsLocked}
             initialTab={tipsInitialTab}
+            onBracketComplete={goHomeAfterBracketSave}
           />
         )}
         {view === "admin" && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked} />}
@@ -144,7 +152,7 @@ function HomeRulesBrief() {
   );
 }
 
-function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBracket }) {
+function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBracket, tipsRefreshKey }) {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -175,7 +183,7 @@ function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBr
         getIncompleteTipsTab(tips.groupRanks, tips.thirdGroups, tips.knockout) || "groups"
       );
     });
-  }, [user?.id, tipsLocked]);
+  }, [user?.id, tipsLocked, tipsRefreshKey]);
 
   const handleRegister = async () => {
     if (!name.trim()) return setError("Please enter your name.");
