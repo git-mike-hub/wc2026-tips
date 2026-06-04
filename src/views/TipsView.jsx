@@ -11,7 +11,7 @@ import {
   calculateTotalPoints,
   hasAnyGroupResults,
   hasThirdPlaceResults,
-  hasKnockoutResultsForScoring,
+  hasAnyKnockoutResults,
   scoreGroupByGroup,
   scoreThirdPlaceTips,
 } from "../lib/scoring.js";
@@ -65,7 +65,7 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
 
   const showGroupScore = hasAnyGroupResults(results?.groups);
   const showThirdScore = hasThirdPlaceResults(results?.thirdGroups);
-  const showKoScore = hasKnockoutResultsForScoring(results?.knockout);
+  const showKoScore = hasAnyKnockoutResults(results?.knockout);
 
   const groupPoints = useMemo(
     () => (showGroupScore ? scoreGroupByGroup(normalizedRanks, results?.groups) : {}),
@@ -144,7 +144,7 @@ export function TipsView({ user, tipsLocked, initialTab = "groups", onBracketCom
               {showThirdScore && <> · 3rd {pointsSummary.thirdPts}</>}
               {showKoScore && <> · KO {pointsSummary.koPts}</>}
               {showKoScore && pointsSummary.finalistPts > 0 && <> · Finalists +{pointsSummary.finalistPts}</>}
-              {showKoScore && pointsSummary.champPts > 0 && <> · Champion +{pointsSummary.champPts}</>}
+              {results?.knockout?.[104] && pointsSummary.champPts > 0 && <> · Champion +{pointsSummary.champPts}</>}
             </span>
           )}
         </div>

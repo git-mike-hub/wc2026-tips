@@ -85,10 +85,23 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   };
 
   const pickKo = async (matchNum, team) => {
-    setKnockout((k) => ({ ...k, [matchNum]: team }));
+    const next = { ...knockout, [matchNum]: team };
+    setKnockout(next);
     setSaving(true);
-    await saveKnockoutResult(supabase, matchNum, team);
-    await saveRankSnapshot();
+    setMsg((m) => ({ ...m, knockout: "" }));
+    try {
+      await saveKnockoutResult(supabase, matchNum, team);
+      await saveRankSnapshot();
+      const n = Object.keys(next).length;
+      setMsg((m) => ({
+        ...m,
+        knockout: `✅ M${matchNum} saved — ${n} match result${n === 1 ? "" : "s"} in · rankings updated`,
+      }));
+      setTimeout(() => setMsg((m) => ({ ...m, knockout: "" })), 5000);
+    } catch {
+      setMsg((m) => ({ ...m, knockout: "❌ Could not save match result" }));
+      setKnockout(knockout);
+    }
     setSaving(false);
   };
 
@@ -240,13 +253,26 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
 
       {tab === "knockout" && (
         <>
-          <p className="section-intro">Enter each match winner (used to score which teams reached each round).</p>
+          <p className="section-intro">
+            Enter match winners as games finish — each pick saves immediately and updates everyone&apos;s points and
+            rankings. You do not need to fill the whole bracket at once.
+          </p>
+          {msg.knockout && (
+            <div className={`alert ${msg.knockout.startsWith("✅") ? "alert-success" : "alert-error"}`} style={{ margin: "0 0 12px" }}>
+              {msg.knockout}
+            </div>
+          )}
+          <p className="count-badge" style={{ marginBottom: 12 }}>
+            {Object.keys(knockout).length} match result{Object.keys(knockout).length === 1 ? "" : "s"} saved
+            {saving ? " · saving…" : ""}
+          </p>
           <KnockoutPicker
             groupRanks={groupRanks}
             thirdGroups={thirdGroups}
             winners={knockout}
             onPick={pickKo}
             locked={false}
+            adminResultsMode
           />
         </>
       )}

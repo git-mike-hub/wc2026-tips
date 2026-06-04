@@ -70,21 +70,36 @@ export function scoreKnockoutTips(tipsByNum, actualByNum) {
   return scoreKnockoutBreakdown(tipsByNum, actualByNum).total;
 }
 
+export function countKnockoutResultsEntered(actualByNum) {
+  return Object.keys(actualByNum || {}).length;
+}
+
 export function scoreKnockoutBreakdown(tipsByNum, actualByNum) {
   let total = 0;
   const byRound = {};
   for (const { key, label } of KNOCKOUT_SCORING_ROUNDS) {
     const tip = getTeamsReachingRound(tipsByNum, key);
     const act = getTeamsReachingRound(actualByNum, key);
-    if (!act.complete) {
-      byRound[key] = { label, points: 0, possible: 0, scored: false };
+    const feeder = FEEDER_MATCHES[key];
+    const enteredCount = feeder.filter((m) => actualByNum?.[m.num]).length;
+
+    if (enteredCount === 0) {
+      byRound[key] = { label, points: 0, possible: 0, scored: false, partial: false, enteredCount: 0, feederTotal: feeder.length };
       continue;
     }
     let points = 0;
     for (const t of tip.teams) {
       if (act.teams.has(t)) points += 1;
     }
-    byRound[key] = { label, points, possible: act.teams.size, scored: true };
+    byRound[key] = {
+      label,
+      points,
+      possible: act.teams.size,
+      scored: true,
+      partial: !act.complete,
+      enteredCount,
+      feederTotal: feeder.length,
+    };
     total += points;
   }
   return { total, byRound };
@@ -92,10 +107,10 @@ export function scoreKnockoutBreakdown(tipsByNum, actualByNum) {
 
 export function scoreFinalistBonus(tipsByNum, actualByNum) {
   const tipFinalists = new Set(getPredictedFinalists(tipsByNum));
-  const actualFinalists = new Set(getPredictedFinalists(actualByNum));
   let pts = 0;
-  for (const t of tipFinalists) {
-    if (actualFinalists.has(t)) pts += 5;
+  for (const m of MATCHES.semis) {
+    const actual = actualByNum?.[m.num];
+    if (actual && tipFinalists.has(actual)) pts += 5;
   }
   return pts;
 }
@@ -155,24 +170,37 @@ export function hasThirdPlaceResults(actualGroups) {
   return (actualGroups || []).length === 8;
 }
 
-export function hasKnockoutResultsForScoring(actualByNum) {
-  return KNOCKOUT_SCORING_ROUNDS.some(({ key }) => getTeamsReachingRound(actualByNum, key).complete);
+export function hasAnyKnockoutResults(actualByNum) {
+  return countKnockoutResultsEntered(actualByNum) > 0;
 }
 
-/** null = no badge; 0/1 = points for predicted reach when results exist. */
-export function teamReachPoints(team, fixtureRound, tipsByNum, actualByNum, showScore) {
-  if (!showScore || !team) return null;
-  const reaching = FIXTURE_ROUND_TO_REACHING[fixtureRound];
-  if (!reaching) return null;
-  const act = getTeamsReachingRound(actualByNum, reaching);
-  const tip = getTeamsReachingRound(tipsByNum, reaching);
-  if (!act.complete || !tip.teams.has(team)) return null;
-  return act.teams.has(team) ? 1 : 0;
+/** @deprecated alias */
+export function hasKnockoutResultsForScoring(actualByNum) {
+  return hasAnyKnockoutResults(actualByNum);
+}
+
+/** Per-match reach pts when user picked this team to win the match and result is entered. */
+export function teamMatchReachPoints(team, matchNum, tipsByNum, actualByNum, showScore) {
+  if (!showScore || !team || matchNum == null) return null;
+  if (tipsByNum?.[matchNum] !== team) return null;
+  const actualWinner = actualByNum?.[matchNum];
+  if (!actualWinner) return null;
+  return actualWinner === team ? 1 : 0;
+}
+
+export function teamChampionPoints(team, matchNum, tipsByNum, actualByNum, showScore) {
+  if (!showScore || matchNum !== MATCHES.final.num) return null;
+  if (tipsByNum?.[matchNum] !== team) return null;
+  const actual = actualByNum?.[matchNum];
+  if (!actual) return null;
+  return actual === team ? 10 : 0;
 }
 
 /** UI helper: class suffix for a team row when results exist. */
-export function teamReachScoreClass(team, fixtureRound, tipsByNum, actualByNum, showScore) {
-  const pts = teamReachPoints(team, fixtureRound, tipsByNum, actualByNum, showScore);
+export function teamReachScoreClass(team, matchNum, tipsByNum, actualByNum, showScore) {
+  const champ = teamChampionPoints(team, matchNum, tipsByNum, actualByNum, showScore);
+  if (champ !== null) return champ === 10 ? " reach-correct" : " reach-wrong";
+  const pts = teamMatchReachPoints(team, matchNum, tipsByNum, actualByNum, showScore);
   if (pts === null) return "";
   return pts === 1 ? " reach-correct" : " reach-wrong";
 }

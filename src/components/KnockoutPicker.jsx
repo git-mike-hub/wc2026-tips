@@ -8,7 +8,8 @@ import {
   FIXTURE_ROUND_TO_REACHING,
   scoreKnockoutBreakdown,
   teamReachScoreClass,
-  teamReachPoints,
+  teamMatchReachPoints,
+  teamChampionPoints,
 } from "../lib/scoring.js";
 import { FLAGS } from "../constants.js";
 
@@ -53,6 +54,7 @@ export function KnockoutPicker({
   locked,
   actualWinners,
   showScore,
+  adminResultsMode,
 }) {
   const fixtures = getLiveFixtures(groupRanks, thirdGroups, winners);
   const scrollRef = useRef(null);
@@ -128,7 +130,10 @@ export function KnockoutPicker({
                 <h3 className="bracket-column-title">{label}</h3>
                 {roundScore?.scored && (
                   <p className="bracket-round-score">
-                    Reach {roundScore.label}: <strong>{roundScore.points}</strong> / {roundScore.possible} pts
+                    Reach {roundScore.label}: <strong>{roundScore.points}</strong>
+                    {roundScore.partial
+                      ? ` / ${roundScore.possible} pts (${roundScore.enteredCount}/${roundScore.feederTotal} matches)`
+                      : ` / ${roundScore.possible} pts`}
                   </p>
                 )}
                 <div className="bracket-column-matches">
@@ -149,6 +154,9 @@ export function KnockoutPicker({
                         <div className="bracket-match-card">
                           <div className="bracket-match-head">
                             <span className="bracket-match-id">M{f.matchNum}</span>
+                            {adminResultsMode && winners[f.matchNum] && (
+                              <span className="bracket-saved-badge">Saved</span>
+                            )}
                             {f.date && (
                               <span className="bracket-match-meta">
                                 {f.date}
@@ -177,14 +185,21 @@ export function KnockoutPicker({
                                 const team = side.team;
                                 const reachClass = teamReachScoreClass(
                                   team,
-                                  f.round,
+                                  f.matchNum,
                                   winners,
                                   actualWinners,
                                   showScore
                                 );
-                                const reachPts = teamReachPoints(
+                                const champPts = teamChampionPoints(
                                   team,
-                                  f.round,
+                                  f.matchNum,
+                                  winners,
+                                  actualWinners,
+                                  showScore
+                                );
+                                const reachPts = teamMatchReachPoints(
+                                  team,
+                                  f.matchNum,
                                   winners,
                                   actualWinners,
                                   showScore
@@ -200,7 +215,15 @@ export function KnockoutPicker({
                                     <span className="bracket-team-flag">{FLAGS[team] || "🏳"}</span>
                                     <span className="bracket-team-name">{team}</span>
                                     {side.seed && <span className="bracket-team-seed">{side.seed}</span>}
-                                    {reachPts !== null && (
+                                    {champPts !== null && (
+                                      <span
+                                        className={`bracket-team-pts${champPts === 10 ? " earned" : ""}`}
+                                        title={champPts === 10 ? "Correct champion" : "Wrong champion pick"}
+                                      >
+                                        {champPts} pt
+                                      </span>
+                                    )}
+                                    {champPts === null && reachPts !== null && (
                                       <span
                                         className={`bracket-team-pts${reachPts === 1 ? " earned" : ""}`}
                                         title={reachPts === 1 ? "Correct reach pick" : "Did not advance"}
