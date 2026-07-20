@@ -17,7 +17,7 @@ import {
 import { GroupRankPicker } from "../components/GroupRankPicker.jsx";
 import { KnockoutPicker } from "../components/KnockoutPicker.jsx";
 
-export function AdminView({ tipsLocked, setTipsLocked }) {
+export function AdminView({ tipsLocked, setTipsLocked, ranksVisible, setRanksVisible }) {
   const [tab, setTab] = useState("groups");
   const [groupRanks, setGroupRanks] = useState({});
   const [thirdGroups, setThirdGroups] = useState([]);
@@ -29,6 +29,7 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
   const [msg, setMsg] = useState({});
   const [loading, setLoading] = useState(true);
   const [lockBusy, setLockBusy] = useState(false);
+  const [ranksBusy, setRanksBusy] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
   const [resetMsg, setResetMsg] = useState("");
   const [saving, setSaving] = useState(false);
@@ -60,6 +61,14 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     await supabase.from("settings").upsert({ key: "tips_locked", value: String(newVal) }, { onConflict: "key" });
     setTipsLocked(newVal);
     setLockBusy(false);
+  };
+
+  const toggleRanksView = async () => {
+    setRanksBusy(true);
+    const newVal = !ranksVisible;
+    await supabase.from("settings").upsert({ key: "ranks_visible", value: String(newVal) }, { onConflict: "key" });
+    setRanksVisible(newVal);
+    setRanksBusy(false);
   };
 
   const rankBaselineFailedMsg = () =>
@@ -254,14 +263,25 @@ export function AdminView({ tipsLocked, setTipsLocked }) {
     <div>
       <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: "var(--green)", margin: "24px 0 16px" }}>⚙️ Admin</h2>
 
-      <div className="lock-toggle">
-        <div>
-          <div style={{ fontWeight: 700 }}>{tipsLocked ? "🔒 Tips locked" : "🟢 Tips open"}</div>
-          <div className="lock-status-desc">{tipsLocked ? "No new submissions." : "Participants can edit brackets."}</div>
+      <div className="admin-toggles">
+        <div className="lock-toggle">
+          <div>
+            <div style={{ fontWeight: 700 }}>{tipsLocked ? "🔒 Tips locked" : "🟢 Tips open"}</div>
+            <div className="lock-status-desc">{tipsLocked ? "No new submissions." : "Participants can edit brackets."}</div>
+          </div>
+          <button type="button" className={`btn-sm ${tipsLocked ? "btn-green" : "btn-red"}`} onClick={toggleLock} disabled={lockBusy}>
+            {lockBusy ? "…" : tipsLocked ? "Unlock" : "Lock Tips"}
+          </button>
         </div>
-        <button type="button" className={`btn-sm ${tipsLocked ? "btn-green" : "btn-red"}`} onClick={toggleLock} disabled={lockBusy}>
-          {lockBusy ? "…" : tipsLocked ? "Unlock" : "Lock Tips"}
-        </button>
+        <div className="lock-toggle">
+          <div>
+            <div style={{ fontWeight: 700 }}>Ranks View</div>
+            <div className="lock-status-desc">{ranksVisible ? "Visible to everyone." : "Hidden from non-admins."}</div>
+          </div>
+          <button type="button" className={`btn-sm ${ranksVisible ? "btn-green" : "btn-red"}`} onClick={toggleRanksView} disabled={ranksBusy}>
+            {ranksBusy ? "…" : ranksVisible ? "On" : "Off"}
+          </button>
+        </div>
       </div>
 
       <div className="card">

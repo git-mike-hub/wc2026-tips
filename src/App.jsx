@@ -30,8 +30,11 @@ export default function App() {
   const [view, setView] = useState("home");
   const [loading, setLoading] = useState(true);
   const [tipsLocked, setTipsLocked] = useState(false);
+  const [ranksVisible, setRanksVisible] = useState(true);
   const [tipsInitialTab, setTipsInitialTab] = useState("groups");
   const [homeTipsKey, setHomeTipsKey] = useState(0);
+
+  const canSeeRanks = ranksVisible || !!user?.is_admin;
 
   const openTips = (tab = "groups") => {
     setTipsInitialTab(tab);
@@ -60,11 +63,22 @@ export default function App() {
   useEffect(() => {
     const saved = localStorage.getItem("wc2026_user");
     if (saved) setUser(JSON.parse(saved));
-    supabase.from("settings").select("value").eq("key", "tips_locked").maybeSingle().then(({ data }) => {
-      setTipsLocked(data?.value === "true");
-      setLoading(false);
-    });
+    supabase
+      .from("settings")
+      .select("key, value")
+      .in("key", ["tips_locked", "ranks_visible"])
+      .then(({ data }) => {
+        const map = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+        setTipsLocked(map.tips_locked === "true");
+        // Default On when unset so existing tournaments keep showing Ranks
+        setRanksVisible(map.ranks_visible !== "false");
+        setLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    if (view === "leaderboard" && !canSeeRanks) setView("home");
+  }, [view, canSeeRanks]);
 
   const login = (u) => {
     setUser(u);
@@ -92,6 +106,7 @@ export default function App() {
       <AppNav
         view={view}
         user={user}
+        ranksVisible={canSeeRanks}
         onHome={() => setView("home")}
         onRules={goToRules}
         onLeaderboard={() => setView("leaderboard")}
@@ -106,13 +121,14 @@ export default function App() {
             user={user}
             onLogin={login}
             tipsLocked={tipsLocked}
+            ranksVisible={canSeeRanks}
             setView={setView}
             onContinueTips={openTips}
             onOpenBracket={() => openTips("groups")}
             tipsRefreshKey={homeTipsKey}
           />
         )}
-        {view === "leaderboard" && <LeaderboardView user={user} tipsLocked={tipsLocked} />}
+        {view === "leaderboard" && canSeeRanks && <LeaderboardView user={user} tipsLocked={tipsLocked} />}
         {view === "tips" && user && (
           <TipsView
             key={`${user.id}-${tipsInitialTab}`}
@@ -122,7 +138,14 @@ export default function App() {
             onBracketComplete={goHomeAfterBracketSave}
           />
         )}
-        {view === "admin" && user?.is_admin && <AdminView tipsLocked={tipsLocked} setTipsLocked={setTipsLocked} />}
+        {view === "admin" && user?.is_admin && (
+          <AdminView
+            tipsLocked={tipsLocked}
+            setTipsLocked={setTipsLocked}
+            ranksVisible={ranksVisible}
+            setRanksVisible={setRanksVisible}
+          />
+        )}
       </div>
     </>
   );
@@ -152,7 +175,7 @@ function HomeRulesBrief() {
   );
 }
 
-function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBracket, tipsRefreshKey }) {
+function HomeView({ user, onLogin, tipsLocked, ranksVisible, setView, onContinueTips, onOpenBracket, tipsRefreshKey }) {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -249,7 +272,9 @@ function HomeView({ user, onLogin, tipsLocked, setView, onContinueTips, onOpenBr
             <button type="button" className="btn btn-primary" style={{ maxWidth: 160 }} onClick={onOpenBracket}>
               My Bracket
             </button>
-            <button type="button" className="btn btn-secondary" style={{ maxWidth: 160 }} onClick={() => setView("leaderboard")}>Ranks</button>
+            {ranksVisible && (
+              <button type="button" className="btn btn-secondary" style={{ maxWidth: 160 }} onClick={() => setView("leaderboard")}>Ranks</button>
+            )}
           </div>
         </div>
         <HomeRulesBrief />

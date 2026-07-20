@@ -203,6 +203,8 @@ export const styles = `
   .admin-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
   .admin-tab{padding:8px 20px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;}
   .admin-tab.active{background:rgba(245,197,24,0.2);border-color:var(--gold);color:var(--gold);}
+  .admin-toggles{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+  .admin-toggles .lock-toggle{flex:1;min-width:220px;margin-bottom:0;}
   .lock-toggle{display:flex;align-items:center;gap:12px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;}
   .lock-status-desc{font-size:12px;color:var(--text3);margin-top:2px;}
   .participant-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;flex-wrap:wrap;gap:8px;}

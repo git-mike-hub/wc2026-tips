@@ -5,6 +5,7 @@ const NAV_LOGO = "/eshkol-logo-with-name.png";
 export function AppNav({
   view,
   user,
+  ranksVisible = true,
   onHome,
   onRules,
   onLeaderboard,
@@ -50,7 +51,7 @@ export function AppNav({
           <div className={`nav-tabs${menuOpen ? " open" : ""}`}>
             {tab("home", "Home", onHome)}
             {tab("rules", "Rules", onRules)}
-            {tab("leaderboard", "Ranks", onLeaderboard)}
+            {ranksVisible && tab("leaderboard", "Ranks", onLeaderboard)}
             {user && tab("tips", "My Bracket", onTips)}
             {user?.is_admin && tab("admin", "Admin", onAdmin)}
           </div>
